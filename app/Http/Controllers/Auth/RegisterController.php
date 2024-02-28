@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
+use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Foundation\Auth\RegistersUsers;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Traits\HasRoles;
+
 
 class RegisterController extends Controller
 {
@@ -23,22 +26,19 @@ class RegisterController extends Controller
     */
 
     use RegistersUsers;
+    //use HasRoles;
 
-    /**
-     * Where to redirect users after registration.
-     *
-     * @var string
-     */
-    protected $redirectTo = RouteServiceProvider::HOME;
 
-    /**
-     * Create a new controller instance.
-     *
-     * @return void
-     */
-    public function __construct()
+    public function index()
     {
-        $this->middleware('guest');
+
+
+    }  
+
+    public function registration()
+    {
+
+        return view('auth.register');
     }
 
     /**
@@ -47,12 +47,12 @@ class RegisterController extends Controller
      * @param  array  $data
      * @return \Illuminate\Contracts\Validation\Validator
      */
-    protected function validator(array $data)
+    protected function validator(Request $request)
     {
-        return Validator::make($data, [
-            'name' => ['required', 'string', 'max:255'],
+        return Validator::make($request, [
+            'nombre' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'clave' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
     }
 
@@ -62,12 +62,78 @@ class RegisterController extends Controller
      * @param  array  $data
      * @return \App\Models\User
      */
-    protected function create(array $data)
+    protected function create(Request $request)
     {
+
+        $role = $request['rol'];
+
         return User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-        ]);
+
+            'name' => $request['nombre'],
+
+            'email' => $request['email'],
+
+           'rol' => $request['rol'],
+
+            'password' => Hash::make($request['clave']),
+
+        ])->assignRole($role);
+    }
+
+
+    public function showRegistrationForm()
+
+    {
+
+        $roles = User::all('id', 'rol');
+
+        return view("register", compact("roles"));
+    }
+
+
+
+
+    public function edit($id)
+    {
+
+        $id_usuario  = User::find($id);
+
+        return response()->json($id_usuario);
+    }
+
+
+    public function update(Request $request, $id)
+    {
+
+        $id = $request->input('id_usuario');
+
+        $user = User::find($id);
+
+        $user->name  = $request->nombre;
+
+        $user->email = $request->email;
+
+        $user->rol = $request->rol;
+        
+        $user->password = Hash::make($request->clave);
+
+        $user->save();
+
+        return response()->json(['success' => 'update successfully.']);
+    }
+
+
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroy($id)
+    {
+        User::find($id)->delete();
+
+        return response()->json(['success' => 'deleted successfully.']);
     }
 }

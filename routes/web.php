@@ -24,5 +24,9 @@ Auth::routes();
 
 Route::get('inicio', [App\Http\Controllers\HomeController::class, 'index'])->name('inicio');
 
+Route::get('register', [App\Http\Controllers\Auth\RegisterController::class, 'registration'])->name('register');
+
+Route::get('clientes', [App\Http\Controllers\ClienteController::class, 'index'])->name('clientes');
+
 
 

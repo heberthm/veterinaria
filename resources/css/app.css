@@ -1,2 +1,8 @@
 @import '../../node_modules/bootstrap';
 @import '../../node_modules/admin-lte/dist/css/adminlte.css';
+
+
+@fullcalendar/core/main.css;
+@fullcalendar/daygrid/main.css;
+@fullcalendar/timegrid/main.css;
+@fullcalendar/list/main.css;

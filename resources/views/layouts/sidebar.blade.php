@@ -1,3 +1,5 @@
+<div hx-boost="true">
+
 <aside class="main-sidebar sidebar-light-gray elevation-4">
    <!-- Brand Logo -->
    <a href="{{ asset('inicio') }}" class="brand-link">
@@ -51,7 +53,7 @@
 
          <li class="nav-item">
 
-           <a href="{{ url('registrar_tratamientos') }}" class="nav-link {{ request()->is('registrar_tratamientos') ? 'active' : '' }}">
+           <a href="{{ url('clientes') }}" class="nav-link {{ request()->is('clientes') ? 'active' : '' }}">
 
              <!-- <i class="nav-icon fas fa-list green"></i> -->
              <i class="nav-icon fas  fa-medkit"></i>
@@ -361,3 +363,5 @@
    </div>
    <!-- /.sidebar -->
  </aside>
+
+</div>

@@ -14,7 +14,7 @@
 
           @vite(['resources/css/app.css'])
 
-
+        
 </head>
 <body class="hold-transition login-page">
 
@@ -93,33 +93,8 @@
 @vite(['resources/js/app.js'])
 
 
-
 <script>
 
-// =====================================
-
-// CONFIGURAR BOTÓN SUBMIT CON SPINNER
-
-// =====================================
-
-$('#form-login').off('submit').on('submit', function(event) {
-
-        let btn = $('.btn-block')
-
-        let existingHTML = btn.html() //store exiting button HTML
-
-        //Add loading message and spinner
-        $(btn).html('<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Procesando...').prop('disabled', true)
-
-        setTimeout(function() {
-
-        $(btn).html(existingHTML).prop('disabled', false) //show original HTML and enable
-
-        }, 5000) //5 seconds
-
-        $('.btn-block').attr('disabled', true);
-
-});
 
 
 
