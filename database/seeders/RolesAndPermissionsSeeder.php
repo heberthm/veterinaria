@@ -47,6 +47,9 @@ class RolesAndPermissionsSeeder extends Seeder
         Permission::create(['name' => 'eliminar_usuarios']);
         Permission::create(['name' => 'ver_configuracion']);
         Permission::create(['name' => 'editar_configuracion']);
+        Permission::firstOrCreate(['name' => 'ver_caja', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'gestionar_caja', 'guard_name' => 'web']);
+
 
         // Crear roles
         $superAdmin = Role::create(['name' => 'SuperAdmin']);
@@ -54,6 +57,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $veterinario = Role::create(['name' => 'Veterinario']);
         $recepcionista = Role::create(['name' => 'Recepcionista']);
         $cajero = Role::create(['name' => 'Cajero']);
+         
 
         // Asignar permisos a roles
         $superAdmin->givePermissionTo(Permission::all());

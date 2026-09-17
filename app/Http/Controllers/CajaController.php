@@ -12,11 +12,14 @@ use Yajra\DataTables\Facades\DataTables;
 
 class CajaController extends Controller
 {
-    public function __construct()
+   public function __construct()
     {
         $this->middleware('auth');
+        
+        // 🔥 SOLO ADMINISTRADORES PUEDEN GESTIONAR CAJA
+        $this->middleware('permission:gestionar_caja')->except(['index', 'datatable']);
+        $this->middleware('permission:ver_caja')->only(['index', 'datatable']);
     }
-
     public function index()
     {
         // Obtener la caja principal (o crear una por defecto)

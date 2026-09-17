@@ -5,7 +5,7 @@
     const fmt = (n) => '$' + Math.round(n).toLocaleString('es-CO');
 
     /** Estado en memoria del carrito: { [productoId]: {id, nombre, sub, precio, iva, cantidad, stock, icono} } */
-    let carrito = {};
+   window.carrito = [];
     let clienteId = null;
     let mascotaId = null;
     let metodoPago = 'efectivo';
@@ -304,12 +304,7 @@
         renderCarrito();
 
         $('#inputDescuento')?.addEventListener('input', renderCarrito);
-        $('#btnVaciarCarrito')?.addEventListener('click', () => {
-            if (Object.keys(carrito).length && !confirm('¿Vaciar el carrito actual?')) return;
-            carrito = {};
-            renderCarrito();
-        });
-
+       
         $('#btnCobrar')?.addEventListener('click', registrarVenta);
         $('#btnGuardarVenta')?.addEventListener('click', registrarVenta);
 

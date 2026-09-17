@@ -16,50 +16,130 @@ use Illuminate\Support\Facades\Validator;
 
 class VentaController extends Controller
 {
-    public function pos()
-    {
-        $categorias = CategoriaProducto::orderBy('nombre')->get();
+   public function pos()
+{
+    // ============================================================
+    // 🔥 OBTENER TENANT CON FALLBACK
+    // ============================================================
+    $tenantId = auth()->user()->tenant_id;
 
-        $productos = Producto::where('activo', true)
-            ->where('tipo', 'producto')
-            ->orderBy('nombre')
-            ->get();
-
-        $servicios = Producto::where('activo', true)
-            ->where('tipo', 'servicio')
-            ->orderBy('nombre')
-            ->get();
-
-        $paquetes = Producto::where('activo', true)
-            ->where('tipo', 'paquete')
-            ->orderBy('nombre')
-            ->get();
-
-      
-        $caja = Caja::where('tenant_id', auth()->user()->tenant_id ?? null)
-             ->where('usuario_id', auth()->id())
-            ->where('estado', 'abierta')
-             ->orderBy('fecha_apertura', 'desc')
-            ->first();
-
-        $cajaActual = Caja::where('usuario_id', Auth::id())
-            ->where('estado', 'abierta')
-            ->latest('fecha_apertura')
-            ->first();
-
-        $siguienteConsecutivo = 'POS-' . str_pad(
-            (Venta::count() + 1),
-            6, '0', STR_PAD_LEFT
-        );
-
-        return view('ventas-pos', compact(
-            'categorias', 'productos', 'servicios', 'paquetes',
-            'cajaActual', 'siguienteConsecutivo'
-        ));
+    // Si el usuario no tiene tenant, usar el primero disponible
+    if (!$tenantId) {
+        $tenantId = \App\Models\Tenant::first()->id ?? null;
     }
+
+    // Si aún no hay tenant, usar el tenant de algún producto
+    if (!$tenantId) {
+        $tenantId = Producto::whereNotNull('tenant_id')->value('tenant_id');
+    }
+
+    // ============================================================
+    // CAJA ACTUAL
+    // ============================================================
+    $cajaActual = Caja::where('tenant_id', $tenantId)
+        ->where('estado', 'abierta')
+        ->orderBy('fecha_apertura', 'desc')
+        ->first();
+
+    // ============================================================
+    // PRODUCTOS
+    // ============================================================
+    $productos = Producto::with('categoria')
+        ->when($tenantId, function($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        })
+        ->where('tipo', 'producto')
+        ->get();
+
+    // ============================================================
+    // SERVICIOS
+    // ============================================================
+    $servicios = Producto::with('categoria')
+        ->when($tenantId, function($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        })
+        ->where('tipo', 'servicio')
+        ->get();
+
+    // ============================================================
+    // PAQUETES
+    // ============================================================
+    $paquetes = Producto::with('categoria')
+        ->when($tenantId, function($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        })
+        ->where('tipo', 'paquete')
+        ->get();
+
+    // ============================================================
+    // CATEGORÍAS
+    // ============================================================
+    $categorias = CategoriaProducto::when($tenantId, function($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        })
+        ->where('activo', true)
+        ->get();
+
+    // 🔥 AUTO-CREAR CATEGORÍAS SI NO HAY
+    if ($categorias->isEmpty() && $tenantId) {
+        $defaults = [
+            ['nombre' => 'Alimentos',    'icono' => 'fa-bone',         'tipo' => 'producto'],
+            ['nombre' => 'Medicamentos', 'icono' => 'fa-pills',        'tipo' => 'producto'],
+            ['nombre' => 'Accesorios',   'icono' => 'fa-ring',         'tipo' => 'producto'],
+            ['nombre' => 'Higiene',      'icono' => 'fa-pump-soap',    'tipo' => 'producto'],
+            ['nombre' => 'Servicios',    'icono' => 'fa-stethoscope',  'tipo' => 'servicio'],
+        ];
+
+        foreach ($defaults as $cat) {
+            CategoriaProducto::create(array_merge($cat, [
+                'tenant_id' => $tenantId,
+                'activo' => true,
+            ]));
+        }
+
+        $categorias = CategoriaProducto::where('tenant_id', $tenantId)->get();
+    }
+
+    // ============================================================
+    // CONSECUTIVO
+    // ============================================================
+    $ultimaVenta = Venta::when($tenantId, function($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId);
+        })
+        ->orderBy('id', 'desc')
+        ->first();
+
+    $siguienteConsecutivo = $ultimaVenta 
+        ? str_pad(intval(substr($ultimaVenta->numero_factura ?? 0, -6)) + 1, 6, '0', STR_PAD_LEFT)
+        : '000001';
+
+    return view('ventas-pos', compact(
+        'cajaActual',
+        'productos',
+        'servicios',
+        'paquetes',
+        'categorias',
+        'siguienteConsecutivo'
+    ));
+}
 
     public function store(Request $request)
     {
+
+      // 🔥 VALIDAR QUE HAYA CAJA ABIERTA
+        $cajaActual = Caja::where('tenant_id', auth()->user()->tenant_id ?? null)
+            ->where('estado', 'abierta')
+            ->first();
+
+        if (!$cajaActual) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una caja abierta. Debe abrir la caja antes de registrar ventas.',
+                'redirect' => route('caja')
+            ], 422);
+        }
+
+
         $validator = Validator::make($request->all(), [
             'items'                     => 'required|array|min:1',
             'items.*.producto_id'       => 'required|exists:productos,id',
@@ -75,8 +155,11 @@ class VentaController extends Controller
             return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        $cajaActual = Caja::where('usuario_id', Auth::id())->where('estado', 'abierta')->first();
-        if (!$cajaActual) {
+        $cajaActual = Caja::where('tenant_id', Auth::user()->tenant_id ?? null)
+            ->where('activa', true)
+            ->first();
+
+        if (!$cajaActual || !$cajaActual->estaAbierta()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Debes abrir la caja antes de registrar una venta.',
@@ -119,7 +202,7 @@ class VentaController extends Controller
                 'consecutivo'            => $consecutivo,
                 'cliente_id'             => $request->cliente_id,
                 'mascota_id'             => $request->mascota_id,
-                'usuario_id'                => Auth::id(),
+                'user_id'                => Auth::id(),
                 'subtotal'               => $subtotal,
                 'descuento_porcentaje'   => $descuentoPorcentaje,
                 'descuento_valor'        => $descuentoValor,
@@ -142,6 +225,29 @@ class VentaController extends Controller
                 ]);
 
                 $item['producto']->decrement('stock', $item['cantidad']);
+            }
+
+            // Reflejar el ingreso de la venta en el libro de caja (CajaMovimiento),
+            // para que el saldo_actual y el resumen de /caja incluyan las ventas del POS.
+            $aperturaActual = $cajaActual->aperturaActual();
+            if ($aperturaActual) {
+                $saldoAnterior = $cajaActual->saldo_actual;
+                $saldoNuevo = $saldoAnterior + $total;
+
+                \App\Models\CajaMovimiento::create([
+                    'caja_id'          => $cajaActual->id,
+                    'caja_apertura_id' => $aperturaActual->id,
+                    'usuario_id'       => Auth::id(),
+                    'tipo'             => 'ingreso',
+                    'categoria'        => 'venta',
+                    'monto'            => $total,
+                    'saldo_anterior'   => $saldoAnterior,
+                    'saldo_nuevo'      => $saldoNuevo,
+                    'metodo_pago'      => $request->metodo_pago,
+                    'descripcion'      => "Venta {$consecutivo}",
+                ]);
+
+                $cajaActual->update(['saldo_actual' => $saldoNuevo]);
             }
 
             return $venta;

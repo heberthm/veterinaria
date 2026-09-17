@@ -76,7 +76,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .vc-brand-icon {
-    width: 40px; height: 40px;
+    width: 50px; height: 50px;
     border-radius: 12px;
     background: linear-gradient(135deg, #2FC5C5 0%, #2F6FED 100%);
     display: flex; align-items: center; justify-content: center;
@@ -960,3 +960,240 @@ button { font-family: inherit; cursor: pointer; }
     .vc-stats { grid-template-columns: 1fr; }
     .vc-search { display: none; }
 }
+
+/* ============================================================
+   TEXTO EN COLOR NARANJA
+   ============================================================ */
+
+.vc-text-orange {
+    color: #FF8C00 !important;
+    font-weight: 600;
+}
+
+/* ============================================================
+   CONTENEDOR PADRE DEL POS
+   ============================================================ */
+.vc-pos-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;  /* 🔥 minmax(0, 1fr) */
+    gap: 20px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;                              /* 🔥 CLAVE */
+}
+
+/* Columna izquierda - Forzar ancho máximo */
+.vc-pos-layout > div:first-child {
+    min-width: 0;                                  /* 🔥 CLAVE */
+    max-width: 100%;
+    overflow: hidden;                              /* 🔥 CLAVE */
+}
+
+/* Contenedor de las categorías */
+.vc-pos-cats {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 10px 4px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;                               /* 🔥 CLAVE */
+    width: 100%;                                   /* 🔥 CLAVE */
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #CBD5E1 transparent;
+}
+
+/* Badge individual */
+.vc-pos-cats button {
+    flex: 0 0 auto;                                /* 🔥 No crecer, no encoger */
+    min-width: fit-content;
+    white-space: nowrap;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 20px;
+    border: 1px solid #E5E7EB;
+    background-color: #FFFFFF;
+    color: #64748B;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.vc-pos-cats button.is-active {
+    background-color: #2F6FED;
+    border-color: #2F6FED;
+    color: #FFFFFF;
+    font-weight: 600;
+}
+
+/* Scrollbar visible */
+.vc-pos-cats::-webkit-scrollbar {
+    height: 6px;
+}
+
+.vc-pos-cats::-webkit-scrollbar-track {
+    background: #F1F5F9;
+    border-radius: 3px;
+}
+
+.vc-pos-cats::-webkit-scrollbar-thumb {
+    background-color: #94A3B8;
+    border-radius: 3px;
+}
+
+.vc-pos-cats::-webkit-scrollbar-thumb:hover {
+    background-color: #64748B;
+}
+
+/* ============================================================
+   INDICADOR DE CAJA EN EL POS (SOLO VISUAL)
+   ============================================================ */
+
+.vc-pos-caja-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border-radius: 12px;
+    border: 1px solid;
+    transition: all 0.2s ease;
+}
+
+.vc-pos-caja-status__left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 0;
+}
+
+.vc-pos-caja-status__icon {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: #FFFFFF;
+}
+
+.vc-pos-caja-status__left strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.vc-pos-caja-status__left small {
+    display: block;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.vc-pos-caja-status__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.vc-pos-caja-status__saldo {
+    font-size: 18px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Estado: ABIERTA */
+.vc-pos-caja-status--abierta {
+    background-color: #F0FDF4;
+    border-color: #BBF7D0;
+    color: #166534;
+}
+
+.vc-pos-caja-status--abierta .vc-pos-caja-status__icon {
+    background-color: #22C55E;
+}
+
+.vc-pos-caja-status--abierta .vc-pos-caja-status__saldo {
+    background-color: #DCFCE7;
+    color: #15803D;
+}
+
+/* Estado: CERRADA */
+.vc-pos-caja-status--cerrada {
+    background-color: #FEF2F2;
+    border-color: #FECACA;
+    color: #991B1B;
+}
+
+.vc-pos-caja-status--cerrada .vc-pos-caja-status__icon {
+    background-color: #EF4444;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .vc-pos-caja-status {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .vc-pos-caja-status__right {
+        justify-content: space-between;
+    }
+}
+
+/* ============================================================
+   BOTÓN VACIAR CARRITO
+   ============================================================ */
+
+.vc-cart-clear-btn {
+    background: transparent;
+    border: none;
+    color: #94A3B8;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.vc-cart-clear-btn:hover {
+    background-color: #FEE2E2;
+    color: #DC2626;
+}
+
+.vc-cart-clear-btn:active {
+    transform: scale(0.95);
+}
+
+/* Tooltip personalizado */
+.tooltip-inner {
+    background-color: #1E293B;
+    color: #FFFFFF;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 6px;
+}
+
+.tooltip.bs-tooltip-top .arrow::before {
+    border-top-color: #1E293B;
+}
+
+.tooltip.bs-tooltip-bottom .arrow::before {
+    border-bottom-color: #1E293B;
+}
+
