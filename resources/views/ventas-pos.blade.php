@@ -47,52 +47,7 @@
         </div>
     </div>
 
-  {{-- ============================================================ --}}
-{{-- 🔥 INDICADOR DE CAJA (SOLO VISUAL - SIN ACCIONES) --}}
-{{-- ============================================================ --}}
-
-    @if ($cajaActual)
-        <div class="vc-pos-caja-status vc-pos-caja-status--abierta">
-            <div class="vc-pos-caja-status__left">
-                <span class="vc-pos-caja-status__icon">
-                    <i class="fas fa-cash-register"></i>
-                </span>
-                <div>
-                    <strong>Caja Abierta</strong>
-                    <small>
-                        {{ $cajaActual->nombre }} · 
-                        Apertura: {{ \Carbon\Carbon::parse($cajaActual->fecha_apertura)->format('h:i A') }}
-                        @if($cajaActual->usuarioApertura)
-                            · {{ $cajaActual->usuarioApertura->name }}
-                        @endif
-                    </small>
-                </div>
-            </div>
-            <div class="vc-pos-caja-status__right">
-                <span class="vc-pos-caja-status__saldo">
-                    ${{ number_format($cajaActual->saldo_actual ?? 0, 0, ',', '.') }}
-                </span>
-            </div>
-        </div>
-    @else
-        <div class="vc-pos-caja-status vc-pos-caja-status--cerrada">
-            <div class="vc-pos-caja-status__left">
-                <span class="vc-pos-caja-status__icon">
-                    <i class="fas fa-exclamation-triangle"></i>
-                </span>
-                <div>
-                    <strong>No hay caja abierta</strong>
-                    <small>Debe abrir caja antes de registrar ventas</small>
-                </div>
-            </div>
-            <div class="vc-pos-caja-status__right">
-                <a href="{{ route('caja') }}" class="vc-btn vc-btn-light">
-                    <i class="fas fa-external-link-alt"></i> Ir a Caja
-                </a>
-            </div>
-        </div>
-    @endif
-
+ 
     <div class="vc-pos-layout">
 
         {{-- ===================== COLUMNA IZQUIERDA: catálogo ===================== --}}
