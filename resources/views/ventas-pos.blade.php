@@ -123,7 +123,7 @@
     {{-- ===================== COLUMNA DERECHA: carrito ===================== --}}
     <div class="vc-cart-panel">
         <div class="vc-cart-header">
-            <span>Factura venta No. (<span id="consecutivoVenta">{{ $siguienteConsecutivo }}</span>)</span>
+            <span><h7>Factura venta No. </h7><span id="consecutivoVenta">{{ $siguienteConsecutivo }}</span></span>
             <button type="button" id="btnVaciarCarrito" title="Vaciar carrito de compra"><i class="fas fa-trash"></i></button>
         </div>
 
@@ -152,6 +152,7 @@
                 </div>
             </div>
 
+    
             <div class="vc-payment-methods" id="metodosPago">
                 <button type="button" class="is-active" data-metodo="efectivo"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
                 <button type="button" data-metodo="tarjeta"><i class="far fa-credit-card"></i> Tarjeta</button>
@@ -535,7 +536,7 @@
     .vc-cart-header { display: flex; align-items: center; justify-content: space-between; background: #0E1B30; color: #fff; padding: 14px 18px; border-radius: 16px 16px 0 0; font-size: 13.5px; font-weight: 700; }
     .vc-cart-header button { background: var(--vc-red); border: none; color: #fff; width: 30px; height: 30px; border-radius: 8px; }
     .vc-cart-body { background: #fff; border: 1px solid var(--vc-border); border-top: none; padding: 14px 18px; }
-    .vc-cart-items { max-height: 300px; overflow-y: auto; margin-bottom: 12px; }
+    .vc-cart-items {max-height:190px; overflow-y: auto; overflow-x: hidden; margin-bottom: 12px; padding-right: 4px; crollbar-width: thin; scrollbar-color: #C4CCDA transparent;}
     .vc-cart-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--vc-border); }
     .vc-cart-item__icon { width: 38px; height: 38px; border-radius: 8px; background: #F1F4F9; display: flex; align-items: center; justify-content: center; font-size: 15px; color: var(--vc-blue); flex-shrink: 0; }
     .vc-cart-item__info { flex: 1; min-width: 0; }
@@ -628,41 +629,107 @@
         return { subtotal, iva, descuentoValor, total };
     }
 
-    function renderCarrito() {
-        const contenedor = $('#carritoItems');
-        const items = Object.values(carrito);
+  function renderCarrito() {
+    const contenedor = document.querySelector('#carritoItems');
+    if (!contenedor) {
+        console.error('❌ #carritoItems no existe en el DOM');
+        return;
+    }
 
+    const items = Object.values(carrito);
+    console.log('🟢 renderCarrito items:', items.length, items);
+
+    // ---------- 1. Render ----------
+    try {
         contenedor.innerHTML = items.length === 0
             ? `<div class="vc-cart-empty"><i class="fas fa-shopping-cart"></i>Agrega productos desde el catálogo</div>`
             : items.map((item) => `
                 <div class="vc-cart-item" data-id="${item.id}">
                     <div class="vc-cart-item__icon"><i class="fas fa-capsules"></i></div>
-                    <div class="vc-cart-item__info"><strong>${item.nombre}</strong><span>${item.sub}</span></div>
+                    <div class="vc-cart-item__info">
+                        <strong>${item.nombre}</strong>
+                        <span>${item.sub || ''}</span>
+                    </div>
                     <div class="vc-cart-item__qty">
                         <button type="button" class="btn-qty-menos" data-id="${item.id}">-</button>
                         <span>${item.cantidad}</span>
                         <button type="button" class="btn-qty-mas" data-id="${item.id}">+</button>
                     </div>
                     <div class="vc-cart-item__subtotal">${fmt(item.precio * item.cantidad)}</div>
-                    <button type="button" class="vc-cart-item__remove btn-quitar" data-id="${item.id}"><i class="fas fa-times"></i></button>
+                    <button type="button" class="vc-cart-item__remove btn-quitar" data-id="${item.id}">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             `).join('');
-
-        const { subtotal, iva, descuentoValor, total } = calcularTotales();
-        $('#txtSubtotal').textContent = fmt(subtotal);
-        $('#txtIva').textContent = fmt(iva);
-        $('#txtDescuento').textContent = fmt(descuentoValor);
-        $('#txtTotal').textContent = fmt(total);
-        $('#btnCobrarTotal').textContent = fmt(total);
-
-        const sinItems = items.length === 0;
-        $('#btnCobrar').disabled = sinItems || !cfg.cajaAbierta;
-        $('#btnGuardarVenta').disabled = sinItems || !cfg.cajaAbierta;
-
-        $$('.btn-qty-mas').forEach((b) => b.addEventListener('click', () => cambiarCantidad(b.dataset.id, 1)));
-        $$('.btn-qty-menos').forEach((b) => b.addEventListener('click', () => cambiarCantidad(b.dataset.id, -1)));
-        $$('.btn-quitar').forEach((b) => b.addEventListener('click', () => { delete carrito[b.dataset.id]; renderCarrito(); }));
+    } catch (err) {
+        console.error('❌ Error al pintar items:', err);
     }
+
+    // ---------- 2. Totales (protegido) ----------
+    try {
+        const { subtotal, iva, descuentoValor, total } = calcularTotales();
+        const $sub = document.querySelector('#txtSubtotal');
+        const $iva = document.querySelector('#txtIva');
+        const $desc = document.querySelector('#txtDescuento');
+        const $tot = document.querySelector('#txtTotal');
+        const $btnTotal = document.querySelector('#btnCobrarTotal');
+
+        if ($sub) $sub.textContent = fmt(subtotal);
+        if ($iva) $iva.textContent = fmt(iva);
+        if ($desc) $desc.textContent = fmt(descuentoValor);
+        if ($tot) $tot.textContent = fmt(total);
+        if ($btnTotal) $btnTotal.textContent = fmt(total);
+    } catch (err) {
+        console.error('❌ Error al calcular totales:', err);
+    }
+
+    // ---------- 3. Botones cobrar/guardar ----------
+    const sinItems = items.length === 0;
+    const $cobrar = document.querySelector('#btnCobrar');
+    const $guardar = document.querySelector('#btnGuardarVenta');
+    if ($cobrar) $cobrar.disabled = sinItems || !cfg.cajaAbierta;
+    if ($guardar) $guardar.disabled = sinItems || !cfg.cajaAbierta;
+
+    // ---------- 4. Scroll a partir del 3er ítem ----------
+    try {
+        const LIMITE_ITEMS = 2;
+        if (items.length > LIMITE_ITEMS) {
+            const itemsDOM = contenedor.querySelectorAll('.vc-cart-item');
+            let alturaMax = 0;
+            for (let i = 0; i < LIMITE_ITEMS; i++) {
+                const el = itemsDOM[i];
+                if (!el) continue;
+                const rect = el.getBoundingClientRect();
+                const est = window.getComputedStyle(el);
+                alturaMax += rect.height
+                    + parseFloat(est.marginTop || 0)
+                    + parseFloat(est.marginBottom || 0);
+            }
+            contenedor.style.maxHeight = alturaMax + 'px';
+            contenedor.style.overflowY = 'auto';
+            contenedor.scrollTop = contenedor.scrollHeight;
+        } else {
+            contenedor.style.maxHeight = '';
+            contenedor.style.overflowY = '';
+        }
+    } catch (err) {
+        console.error('❌ Error al ajustar scroll:', err);
+    }
+
+    // ---------- 5. Re-enganchar listeners ----------
+    document.querySelectorAll('.btn-qty-mas').forEach((b) => {
+        b.addEventListener('click', () => cambiarCantidad(b.dataset.id, 1));
+    });
+    document.querySelectorAll('.btn-qty-menos').forEach((b) => {
+        b.addEventListener('click', () => cambiarCantidad(b.dataset.id, -1));
+    });
+    document.querySelectorAll('.btn-quitar').forEach((b) => {
+        b.addEventListener('click', () => {
+            delete carrito[b.dataset.id];
+            renderCarrito();
+        });
+    });
+}
 
     function cambiarCantidad(id, delta) {
         const item = carrito[id];
