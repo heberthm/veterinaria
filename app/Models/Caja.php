@@ -10,10 +10,17 @@ class Caja extends Model
     use HasFactory;
 
     protected $fillable = [
-        'tenant_id', 'nombre', 'descripcion',
-        'saldo_inicial', 'saldo_actual', 'estado',
-        'usuario_apertura_id', 'usuario_cierre_id',
-        'fecha_apertura', 'fecha_cierre', 'activa',
+        'tenant_id',
+        'nombre',
+        'descripcion',
+        'saldo_inicial',
+        'saldo_actual',
+        'estado',
+        'usuario_apertura_id',
+        'usuario_cierre_id',
+        'fecha_apertura',
+        'fecha_cierre',
+        'activa',
     ];
 
     protected $casts = [
@@ -24,56 +31,53 @@ class Caja extends Model
         'activa' => 'boolean',
     ];
 
-    public function tenant() 
-    { 
-        return $this->belongsTo(Tenant::class); 
-    }
-
-    public function usuarioApertura() 
-    { 
-        return $this->belongsTo(User::class, 'usuario_apertura_id'); 
-    }
-
-    public function usuarioCierre() 
-    { 
-        return $this->belongsTo(User::class, 'usuario_cierre_id'); 
-    }
-
-    public function aperturas() 
-    { 
-        return $this->hasMany(CajaApertura::class); 
-    }
-
-    public function movimientos() 
-    { 
-        return $this->hasMany(CajaMovimiento::class); 
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     /**
-     * 🔥 RELACIÓN: Apertura actual (la más reciente con estado 'abierta')
-     * Retorna el MODELO directamente, no la relación
+     * 🔥 RELACIÓN: Usuario que abrió la caja
      */
+    public function usuario()
+    {
+        return $this->belongsTo(User::class, 'usuario_apertura_id');
+    }
+
+    /**
+     * 🔥 ALIAS: Usuario de apertura
+     */
+    public function usuarioApertura()
+    {
+        return $this->belongsTo(User::class, 'usuario_apertura_id');
+    }
+
+    /**
+     * 🔥 RELACIÓN: Usuario que cerró la caja
+     */
+    public function usuarioCierre()
+    {
+        return $this->belongsTo(User::class, 'usuario_cierre_id');
+    }
+
+    public function aperturas()
+    {
+        return $this->hasMany(CajaApertura::class);
+    }
+
+    public function movimientos()
+    {
+        return $this->hasMany(CajaMovimiento::class);
+    }
+
     public function aperturaActual()
     {
-        return $this->hasOne(CajaApertura::class)
+        return CajaApertura::where('caja_id', $this->id)
             ->where('estado', 'abierta')
-            ->latest('fecha_apertura')
-            ->first();  // 🔥 ESTO ES CLAVE
+            ->orderBy('fecha_apertura', 'desc')
+            ->first();
     }
 
-    /**
-     * 🔥 MÉTODO ALTERNATIVO: Relación directa (con nombre que Laravel entiende)
-     */
-    public function aperturaActualRelation()
-    {
-        return $this->hasOne(CajaApertura::class)
-            ->where('estado', 'abierta')
-            ->latest('fecha_apertura');
-    }
-
-    /**
-     * Verificar si la caja está abierta
-     */
     public function estaAbierta()
     {
         return $this->estado === 'abierta';

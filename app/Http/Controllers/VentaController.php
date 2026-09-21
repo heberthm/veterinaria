@@ -2,298 +2,466 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Caja;
-use App\Models\CategoriaProducto;
+use App\Models\Venta;
+use App\Models\VentaDetalle;
 use App\Models\Cliente;
 use App\Models\Mascota;
 use App\Models\Producto;
-use App\Models\Venta;
-use App\Models\VentaItem;
+use App\Models\CategoriaProducto;
+use App\Models\Caja;
+use App\Models\CajaMovimiento;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Yajra\DataTables\Facades\DataTables;
 
 class VentaController extends Controller
 {
-   public function pos()
-{
-    // ============================================================
-    // 🔥 OBTENER TENANT CON FALLBACK
-    // ============================================================
-    $tenantId = auth()->user()->tenant_id;
-
-    // Si el usuario no tiene tenant, usar el primero disponible
-    if (!$tenantId) {
-        $tenantId = \App\Models\Tenant::first()->id ?? null;
-    }
-
-    // Si aún no hay tenant, usar el tenant de algún producto
-    if (!$tenantId) {
-        $tenantId = Producto::whereNotNull('tenant_id')->value('tenant_id');
-    }
-
-    // ============================================================
-    // CAJA ACTUAL
-    // ============================================================
-    $cajaActual = Caja::where('tenant_id', $tenantId)
-        ->where('estado', 'abierta')
-        ->orderBy('fecha_apertura', 'desc')
-        ->first();
-
-    // ============================================================
-    // PRODUCTOS
-    // ============================================================
-    $productos = Producto::with('categoria')
-        ->when($tenantId, function($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId);
-        })
-        ->where('tipo', 'producto')
-        ->get();
-
-    // ============================================================
-    // SERVICIOS
-    // ============================================================
-    $servicios = Producto::with('categoria')
-        ->when($tenantId, function($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId);
-        })
-        ->where('tipo', 'servicio')
-        ->get();
-
-    // ============================================================
-    // PAQUETES
-    // ============================================================
-    $paquetes = Producto::with('categoria')
-        ->when($tenantId, function($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId);
-        })
-        ->where('tipo', 'paquete')
-        ->get();
-
-    // ============================================================
-    // CATEGORÍAS
-    // ============================================================
-    $categorias = CategoriaProducto::when($tenantId, function($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId);
-        })
-        ->where('activo', true)
-        ->get();
-
-    // 🔥 AUTO-CREAR CATEGORÍAS SI NO HAY
-    if ($categorias->isEmpty() && $tenantId) {
-        $defaults = [
-            ['nombre' => 'Alimentos',    'icono' => 'fa-bone',         'tipo' => 'producto'],
-            ['nombre' => 'Medicamentos', 'icono' => 'fa-pills',        'tipo' => 'producto'],
-            ['nombre' => 'Accesorios',   'icono' => 'fa-ring',         'tipo' => 'producto'],
-            ['nombre' => 'Higiene',      'icono' => 'fa-pump-soap',    'tipo' => 'producto'],
-            ['nombre' => 'Servicios',    'icono' => 'fa-stethoscope',  'tipo' => 'servicio'],
-        ];
-
-        foreach ($defaults as $cat) {
-            CategoriaProducto::create(array_merge($cat, [
-                'tenant_id' => $tenantId,
-                'activo' => true,
-            ]));
-        }
-
-        $categorias = CategoriaProducto::where('tenant_id', $tenantId)->get();
-    }
-
-    // ============================================================
-    // CONSECUTIVO
-    // ============================================================
-    $ultimaVenta = Venta::when($tenantId, function($q) use ($tenantId) {
-            $q->where('tenant_id', $tenantId);
-        })
-        ->orderBy('id', 'desc')
-        ->first();
-
-    $siguienteConsecutivo = $ultimaVenta 
-        ? str_pad(intval(substr($ultimaVenta->numero_factura ?? 0, -6)) + 1, 6, '0', STR_PAD_LEFT)
-        : '000001';
-
-    return view('ventas-pos', compact(
-        'cajaActual',
-        'productos',
-        'servicios',
-        'paquetes',
-        'categorias',
-        'siguienteConsecutivo'
-    ));
-}
-
-    public function store(Request $request)
+    public function __construct()
     {
+        $this->middleware('auth');
+    }
 
-      // 🔥 VALIDAR QUE HAYA CAJA ABIERTA
-        $cajaActual = Caja::where('tenant_id', auth()->user()->tenant_id ?? null)
+    /**
+     * Mostrar punto de venta (POS)
+     */
+    public function pos()
+    {
+        $tenantId = auth()->user()->tenant_id ?? null;
+
+        // ============================================================
+        // CAJA ACTUAL
+        // ============================================================
+        $cajaActual = Caja::where('tenant_id', $tenantId)
             ->where('estado', 'abierta')
+            ->orderBy('fecha_apertura', 'desc')
             ->first();
 
-        if (!$cajaActual) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No hay una caja abierta. Debe abrir la caja antes de registrar ventas.',
-                'redirect' => route('caja')
-            ], 422);
+        if ($cajaActual) {
+            $cajaActual->load('usuarioApertura');
         }
 
+        // ============================================================
+        // PRODUCTOS
+        // ============================================================
+        $productos = Producto::with('categoria')
+            ->where('tenant_id', $tenantId)
+            ->where(function($q) {
+                $q->where('tipo', 'producto')->orWhereNull('tipo');
+            })
+            ->where(function($q) {
+                $q->where('activo', true)->orWhereNull('activo');
+            })
+            ->get();
 
+        // ============================================================
+        // SERVICIOS
+        // ============================================================
+        $servicios = Producto::with('categoria')
+            ->where('tenant_id', $tenantId)
+            ->where('tipo', 'servicio')
+            ->get();
+
+        // ============================================================
+        // PAQUETES
+        // ============================================================
+        $paquetes = Producto::with('categoria')
+            ->where('tenant_id', $tenantId)
+            ->where('tipo', 'paquete')
+            ->get();
+
+        // ============================================================
+        // CATEGORÍAS
+        // ============================================================
+        $categorias = CategoriaProducto::where('tenant_id', $tenantId)->get();
+
+        // ============================================================
+        // CONSECUTIVO
+        // ============================================================
+        $ultimaVenta = Venta::where('tenant_id', $tenantId)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $siguienteConsecutivo = $ultimaVenta 
+            ? str_pad(intval(substr($ultimaVenta->numero_factura ?? 0, -6)) + 1, 6, '0', STR_PAD_LEFT)
+            : '000001';
+
+        return view('ventas-pos', compact(
+            'cajaActual',
+            'productos',
+            'servicios',
+            'paquetes',
+            'categorias',
+            'siguienteConsecutivo'
+        ));
+    }
+
+    /**
+     * Guardar venta desde POS
+     */
+    public function store(Request $request)
+    {
+        // ============================================================
+        // VALIDACIONES
+        // ============================================================
         $validator = Validator::make($request->all(), [
-            'items'                     => 'required|array|min:1',
-            'items.*.producto_id'       => 'required|exists:productos,id',
-            'items.*.cantidad'          => 'required|integer|min:1',
-            'cliente_id'                => 'nullable|exists:clientes,id',
-            'mascota_id'                => 'nullable|exists:mascotas,id',
-            'descuento_porcentaje'      => 'nullable|numeric|min:0|max:100',
-            'metodo_pago'               => 'required|in:efectivo,tarjeta,transferencia,mixto',
-            'observacion'               => 'nullable|string|max:500',
+            'productos' => 'required|array|min:1',
+            'productos.*.id' => 'required|exists:productos,id',
+            'productos.*.cantidad' => 'required|numeric|min:0.01',
+            'productos.*.precio' => 'required|numeric|min:0',
+            'cliente_id' => 'nullable|exists:clientes,id',
+            'mascota_id' => 'nullable|exists:mascotas,id',
+            'metodo_pago' => 'nullable|string|max:50',
+            'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'observaciones' => 'nullable|string|max:500',
+
+            // 🔥 CAMPOS DE PAGO
+            'referencia_pago' => 'nullable|string|max:100',
+            'detalle_pago' => 'nullable|array',
+            'monto_efectivo' => 'nullable|numeric|min:0',
+            'monto_otro' => 'nullable|numeric|min:0',
+            'cambio' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-
-        $cajaActual = Caja::where('tenant_id', Auth::user()->tenant_id ?? null)
-            ->where('activa', true)
-            ->first();
-
-        if (!$cajaActual || !$cajaActual->estaAbierta()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Debes abrir la caja antes de registrar una venta.',
+                'errors' => $validator->errors()
             ], 422);
         }
 
-        $venta = DB::transaction(function () use ($request, $cajaActual) {
-            $subtotal = 0;
-            $ivaValor = 0;
-            $itemsValidados = [];
+        // ============================================================
+        // VERIFICAR CAJA ABIERTA
+        // ============================================================
+        $tenantId = auth()->user()->tenant_id ?? null;
 
-            foreach ($request->items as $item) {
-                $producto = Producto::findOrFail($item['producto_id']);
+        $caja = Caja::where('tenant_id', $tenantId)
+            ->where('estado', 'abierta')
+            ->first();
 
-                if ($producto->stock < $item['cantidad']) {
-                    abort(422, "Stock insuficiente para \"{$producto->nombre}\" (disponible: {$producto->stock}).");
-                }
+        if (!$caja) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No hay una caja abierta. Debe abrir caja antes de registrar ventas.'
+            ], 422);
+        }
 
-                $subtotalItem = $producto->precio_venta * $item['cantidad'];
-                $ivaItem = round($subtotalItem * ($producto->iva_porcentaje / 100), 2);
+        // ============================================================
+        // CALCULAR TOTALES
+        // ============================================================
+        $subtotal = 0;
+        $ivaTotal = 0;
 
-                $subtotal += $subtotalItem;
-                $ivaValor += $ivaItem;
+        foreach ($request->productos as $item) {
+            $subtotalItem = $item['precio'] * $item['cantidad'];
+            $subtotal += $subtotalItem;
+            $ivaItem = $subtotalItem * 0.19;
+            $ivaTotal += $ivaItem;
+        }
 
-                $itemsValidados[] = [
-                    'producto'  => $producto,
-                    'cantidad'  => $item['cantidad'],
-                    'subtotal'  => $subtotalItem,
-                ];
-            }
+        $descuentoPorcentaje = $request->descuento_porcentaje ?? 0;
+        $descuento = $subtotal * ($descuentoPorcentaje / 100);
+        $total = $subtotal - $descuento + $ivaTotal;
 
-            $descuentoPorcentaje = $request->input('descuento_porcentaje', 0);
-            $descuentoValor = round($subtotal * ($descuentoPorcentaje / 100), 2);
-            $total = round($subtotal - $descuentoValor + $ivaValor, 2);
+        try {
+            DB::beginTransaction();
 
-            $consecutivo = 'POS-' . str_pad((Venta::count() + 1), 6, '0', STR_PAD_LEFT);
-
+            // ============================================================
+            // CREAR VENTA
+            // ============================================================
             $venta = Venta::create([
-                'caja_id'               => $cajaActual->id,
-                'consecutivo'            => $consecutivo,
-                'cliente_id'             => $request->cliente_id,
-                'mascota_id'             => $request->mascota_id,
-                'user_id'                => Auth::id(),
-                'subtotal'               => $subtotal,
-                'descuento_porcentaje'   => $descuentoPorcentaje,
-                'descuento_valor'        => $descuentoValor,
-                'iva_valor'              => $ivaValor,
-                'total'                  => $total,
-                'metodo_pago'            => $request->metodo_pago,
-                'estado'                 => 'pagada',
-                'observacion'            => $request->observacion,
+                'tenant_id' => $tenantId,
+                'cliente_id' => $request->cliente_id,
+                'mascota_id' => $request->mascota_id,
+                'usuario_id' => auth()->id(),
+                'numero_factura' => 'V-' . str_pad(Venta::where('tenant_id', $tenantId)->count() + 1, 6, '0', STR_PAD_LEFT),
+                'fecha' => now(),
+                'subtotal' => $subtotal,
+                'descuento' => $descuento,
+                'iva' => $ivaTotal,
+                'total' => $total,
+                'metodo_pago' => $request->metodo_pago ?? 'efectivo',
+                'estado' => 'completada',
+                'observaciones' => $request->observaciones,
+
+                // 🔥 CAMPOS DE PAGO NUEVOS
+                'referencia_pago' => $request->referencia_pago,
+                'detalle_pago' => $request->detalle_pago,
+                'monto_efectivo' => $request->monto_efectivo,
+                'monto_otro' => $request->monto_otro,
+                'cambio' => $request->cambio,
             ]);
 
-            foreach ($itemsValidados as $item) {
-                VentaItem::create([
-                    'venta_id'         => $venta->id,
-                    'producto_id'      => $item['producto']->id,
-                    'nombre_producto'  => $item['producto']->nombre,
-                    'precio_unitario'  => $item['producto']->precio_venta,
-                    'cantidad'         => $item['cantidad'],
-                    'iva_porcentaje'   => $item['producto']->iva_porcentaje,
-                    'subtotal'         => $item['subtotal'],
+            // ============================================================
+            // CREAR DETALLES Y ACTUALIZAR STOCK
+            // ============================================================
+            foreach ($request->productos as $item) {
+                $producto = Producto::find($item['id']);
+
+                if (!$producto) {
+                    throw new \Exception('Producto no encontrado: ' . $item['id']);
+                }
+
+                $subtotalItem = $item['precio'] * $item['cantidad'];
+                $ivaItem = $subtotalItem * 0.19;
+
+                VentaDetalle::create([
+                    'venta_id' => $venta->id,
+                    'producto_id' => $producto->id,
+                    'cantidad' => $item['cantidad'],
+                    'precio_unitario' => $item['precio'],
+                    'subtotal' => $subtotalItem,
+                    'iva' => $ivaItem,
+                    'total' => $subtotalItem + $ivaItem,
                 ]);
 
-                $item['producto']->decrement('stock', $item['cantidad']);
+                // Descontar stock solo si es producto
+                if ($producto->tipo === 'producto' || $producto->tipo === null) {
+                    $producto->stock -= $item['cantidad'];
+                    $producto->save();
+                }
             }
 
-            // Reflejar el ingreso de la venta en el libro de caja (CajaMovimiento),
-            // para que el saldo_actual y el resumen de /caja incluyan las ventas del POS.
-            $aperturaActual = $cajaActual->aperturaActual();
-            if ($aperturaActual) {
-                $saldoAnterior = $cajaActual->saldo_actual;
-                $saldoNuevo = $saldoAnterior + $total;
+            // ============================================================
+            // ACTUALIZAR CAJA
+            // ============================================================
+            $saldoAnterior = $caja->saldo_actual;
+            $saldoNuevo = $saldoAnterior + $total;
 
-                \App\Models\CajaMovimiento::create([
-                    'caja_id'          => $cajaActual->id,
-                    'caja_apertura_id' => $aperturaActual->id,
-                    'usuario_id'       => Auth::id(),
-                    'tipo'             => 'ingreso',
-                    'categoria'        => 'venta',
-                    'monto'            => $total,
-                    'saldo_anterior'   => $saldoAnterior,
-                    'saldo_nuevo'      => $saldoNuevo,
-                    'metodo_pago'      => $request->metodo_pago,
-                    'descripcion'      => "Venta {$consecutivo}",
-                ]);
+            $caja->update(['saldo_actual' => $saldoNuevo]);
 
-                $cajaActual->update(['saldo_actual' => $saldoNuevo]);
-            }
+            // ============================================================
+            // REGISTRAR MOVIMIENTO DE CAJA
+            // ============================================================
+            $apertura = DB::table('caja_aperturas')
+                ->where('caja_id', $caja->id)
+                ->where('estado', 'abierta')
+                ->orderBy('fecha_apertura', 'desc')
+                ->first();
 
-            return $venta;
-        });
+            CajaMovimiento::create([
+                'caja_id' => $caja->id,
+                'caja_apertura_id' => $apertura ? $apertura->id : null,
+                'usuario_id' => auth()->id(),
+                'venta_id' => $venta->id,
+                'tipo' => 'ingreso',
+                'categoria' => 'venta',
+                'monto' => $total,
+                'saldo_anterior' => $saldoAnterior,
+                'saldo_nuevo' => $saldoNuevo,
+                'metodo_pago' => $request->metodo_pago ?? 'efectivo',
+                'referencia' => $request->referencia_pago,
+                'descripcion' => 'Venta #' . $venta->numero_factura,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta registrada exitosamente',
+                'venta' => $venta->fresh(),
+                'numero' => $venta->numero_factura,
+                'total' => $total,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la venta: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Buscar clientes (AJAX)
+     */
+    public function buscarClientes(Request $request)
+    {
+        $query = $request->get('q', '');
+        $tenantId = auth()->user()->tenant_id ?? null;
+
+        $clientes = Cliente::where('tenant_id', $tenantId)
+            ->where('activo', true)
+            ->where(function($q) use ($query) {
+                $q->where('nombres', 'LIKE', "%{$query}%")
+                  ->orWhere('apellidos', 'LIKE', "%{$query}%")
+                  ->orWhere('numero_documento', 'LIKE', "%{$query}%")
+                  ->orWhere('celular', 'LIKE', "%{$query}%")
+                  ->orWhere('email', 'LIKE', "%{$query}%");
+            })
+            ->limit(10)
+            ->get();
+
+        return response()->json($clientes);
+    }
+
+    /**
+     * Buscar mascotas (AJAX)
+     */
+    public function buscarMascotas(Request $request)
+    {
+        $query = $request->get('q', '');
+        $clienteId = $request->get('cliente_id');
+        $tenantId = auth()->user()->tenant_id ?? null;
+
+        $mascotas = Mascota::whereHas('cliente', function($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId);
+            })
+            ->when($clienteId, function($q) use ($clienteId) {
+                $q->where('cliente_id', $clienteId);
+            })
+            ->where('activo', true)
+            ->where(function($q) use ($query) {
+                $q->where('nombre', 'LIKE', "%{$query}%")
+                  ->orWhere('raza', 'LIKE', "%{$query}%")
+                  ->orWhere('especie', 'LIKE', "%{$query}%");
+            })
+            ->with('cliente')
+            ->limit(10)
+            ->get();
+
+        return response()->json($mascotas);
+    }
+
+    /**
+     * Listar ventas (DataTable)
+     */
+    public function index()
+    {
+        return view('ventas');
+    }
+
+    /**
+     * DataTable de ventas
+     */
+    public function datatable(Request $request)
+    {
+        $ventas = Venta::with(['cliente', 'usuario'])
+            ->where('tenant_id', auth()->user()->tenant_id ?? null);
+
+        return DataTables::of($ventas)
+            ->addColumn('cliente_nombre', function($venta) {
+                return $venta->cliente 
+                    ? $venta->cliente->nombres . ' ' . $venta->cliente->apellidos 
+                    : 'Consumidor Final';
+            })
+            ->addColumn('usuario_nombre', function($venta) {
+                return $venta->usuario->name ?? 'N/A';
+            })
+            ->addColumn('fecha_formato', function($venta) {
+                return $venta->fecha ? $venta->fecha->format('d/m/Y H:i') : 'N/A';
+            })
+            ->addColumn('total_formateado', function($venta) {
+                return '$ ' . number_format($venta->total, 0, ',', '.');
+            })
+            ->addColumn('metodo_pago_label', function($venta) {
+                $metodos = [
+                    'efectivo' => 'Efectivo',
+                    'tarjeta' => 'Tarjeta',
+                    'tarjeta_credito' => 'Tarjeta Crédito',
+                    'tarjeta_debito' => 'Tarjeta Débito',
+                    'transferencia' => 'Transferencia',
+                    'mixto' => 'Mixto',
+                    'nequi' => 'Nequi',
+                    'daviplata' => 'Daviplata',
+                ];
+                return $metodos[$venta->metodo_pago] ?? ucfirst($venta->metodo_pago);
+            })
+            ->addColumn('estado_badge', function($venta) {
+                $estados = [
+                    'pendiente' => 'warning',
+                    'completada' => 'success',
+                    'anulada' => 'danger',
+                ];
+                $color = $estados[$venta->estado] ?? 'secondary';
+                return '<span class="badge badge-' . $color . '">' . ucfirst($venta->estado) . '</span>';
+            })
+            ->addColumn('acciones', function($venta) {
+                return '
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-primary btn-accion" onclick="verVenta(' . $venta->id . ')" title="Ver detalle">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="/ventas/' . $venta->id . '/pdf" class="btn btn-danger btn-accion" target="_blank" title="PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </a>
+                    </div>
+                ';
+            })
+            ->rawColumns(['estado_badge', 'acciones'])
+            ->make(true);
+    }
+
+    /**
+     * Ver detalle de venta
+     */
+    public function show($id)
+    {
+        $venta = Venta::with(['cliente', 'mascota', 'usuario', 'detalles.producto'])
+            ->findOrFail($id);
 
         return response()->json([
             'success' => true,
-            'message' => 'Venta registrada correctamente.',
-            'venta'   => $venta->load('items'),
+            'venta' => $venta,
         ]);
     }
 
-    public function buscarClientes(Request $request)
+    /**
+     * Eliminar venta
+     */
+    public function destroy($id)
     {
-        $termino = $request->input('q', '');
+        try {
+            DB::beginTransaction();
 
-        $clientes = Cliente::where('activo', true)
-            ->where(function ($query) use ($termino) {
-                $query->where('nombres', 'like', "%{$termino}%")
-                    ->orWhere('apellidos', 'like', "%{$termino}%")
-                    ->orWhere('numero_documento', 'like', "%{$termino}%")
-                    ->orWhere('telefono', 'like', "%{$termino}%");
-            })
-            ->limit(10)
-            ->get(['id', 'nombres', 'apellidos', 'numero_documento', 'telefono']);
+            $venta = Venta::findOrFail($id);
 
-        return response()->json($clientes->map(fn ($c) => [
-            'id'    => $c->id,
-            'texto' => $c->nombreCompleto() . ' — ' . $c->numero_documento,
-        ]));
+            // Revertir stock
+            foreach ($venta->detalles as $detalle) {
+                $producto = Producto::find($detalle->producto_id);
+                if ($producto && ($producto->tipo === 'producto' || $producto->tipo === null)) {
+                    $producto->stock += $detalle->cantidad;
+                    $producto->save();
+                }
+            }
+
+            // Eliminar detalles
+            $venta->detalles()->delete();
+
+            // Eliminar venta
+            $venta->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Venta eliminada exitosamente'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al eliminar la venta: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    public function buscarMascotas(Request $request)
+    /**
+     * Generar PDF de venta
+     */
+    public function generarPDF($id)
     {
-        $termino = $request->input('q', '');
-        $clienteId = $request->input('cliente_id');
+        $venta = Venta::with(['cliente', 'mascota', 'usuario', 'detalles.producto'])
+            ->findOrFail($id);
 
-        $mascotas = Mascota::query()
-            ->when($clienteId, fn ($q) => $q->where('cliente_id', $clienteId))
-            ->where('nombre', 'like', "%{$termino}%")
-            ->limit(10)
-            ->get(['id', 'nombre', 'cliente_id']);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('ventas.pdf', compact('venta'))
+            ->setPaper('letter');
 
-        return response()->json($mascotas->map(fn ($m) => [
-            'id'    => $m->id,
-            'texto' => $m->nombre,
-        ]));
+        $nombreArchivo = 'venta-' . $venta->numero_factura . '.pdf';
+
+        return $pdf->download($nombreArchivo);
     }
 }
