@@ -647,8 +647,8 @@
                 <div class="vc-cart-item" data-id="${item.id}">
                     <div class="vc-cart-item__icon"><i class="fas fa-capsules"></i></div>
                     <div class="vc-cart-item__info">
-                        <strong>${item.nombre}</strong>
-                        <span>${item.sub || ''}</span>
+                        <strong>${item.nombre }</strong>
+                       
                     </div>
                     <div class="vc-cart-item__qty">
                         <button type="button" class="btn-qty-menos" data-id="${item.id}">-</button>
@@ -656,9 +656,7 @@
                         <button type="button" class="btn-qty-mas" data-id="${item.id}">+</button>
                     </div>
                     <div class="vc-cart-item__subtotal">${fmt(item.precio * item.cantidad)}</div>
-                    <button type="button" class="vc-cart-item__remove btn-quitar" data-id="${item.id}">
-                        <i class="fas fa-times"></i>
-                    </button>
+                   
                 </div>
             `).join('');
     } catch (err) {
