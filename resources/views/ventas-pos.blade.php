@@ -139,9 +139,9 @@
             <div class="row"><span>Subtotal</span><strong id="txtSubtotal">$0</strong></div>
 
             {{-- 🔥 IVA seleccionable --}}
-            <div class="row vc-iva-row">
-                <span class="vc-iva-label">IVA</span>
-                <div class="vc-iva-controls">
+           <div class="row vc-iva-row">
+                <span class="vc-iva-label">
+                    IVA
                     <select id="selectIva" class="vc-select-iva">
                         <option value="0">0%</option>
                         <option value="5">5%</option>
@@ -149,9 +149,9 @@
                         <option value="16">16%</option>
                         <option value="19" selected>19%</option>
                     </select>
-                    <strong id="txtIva">$0</strong>
-                </div>
-            </div>
+                </span>
+                <strong id="txtIva">$0</strong>
+            </div>  
 
             <div class="row">
                 <span>Descuento <input type="number" id="inputDescuento" min="0" max="100" value="0">%</span>
@@ -196,8 +196,7 @@
             <label class="vc-tipo-comprobante__label">Tipo de Comprobante</label>
             <select id="tipoComprobante" class="vc-select">
                 <option value="ticket">Ticket (80mm)</option>
-                <option value="carta">Factura Carta</option>
-                <option value="ambos">Ticket + Factura</option>
+                <option value="carta">Factura Carta</option>              
             </select>
         </div>
 
@@ -638,42 +637,39 @@
         /* ============================================================ */
         /* 🔥 IVA SELECCIONABLE                                          */
         /* ============================================================ */
-        .vc-iva-row {
+            .vc-iva-row {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 10px;
             padding: 5px 0;
+            color: #64748B;
+            font-size: 13px;
         }
 
         .vc-iva-label {
-            min-width: 70px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             color: #64748B;
-            font-size: 13px;
-            text-align: left;
         }
 
-       .vc-iva-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-        .vc-select-iva {
-            width: 66px;
-            padding: 3px 6px;
-            font-size: 12px;
-            border: 1px solid #E7EBF3;
-            border-radius: 6px;
-            background: #fff;
-            cursor: pointer;
-            color: #1A2332;
-        }
-
-        .vc-select-iva:focus {
-            outline: none;
-            border-color: #2F6FED;
-        }
-
+      .vc-select-iva {
+    padding: 3px 22px 3px 8px;
+    font-size: 12px;
+    border: 1px solid #E7EBF3;
+    border-radius: 7px;
+    background-color: #fff;
+    color: #1A2332;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
+    text-align: center;
+    min-width: 58px;
+}
         /* ============================================================ */
         /* 🔥 EFECTIVO RECIBIDO + CAMBIO                                 */
         /* ============================================================ */
@@ -899,6 +895,76 @@
             cursor: not-allowed;
             filter: none;
         }
+
+        /* ============================================================ */
+/* 🔥 PREVIEW EN MODAL — TICKET 80mm                            */
+/* ============================================================ */
+#previewImpresion.formato-ticket {
+    width: 302px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #000;
+    padding: 12px;
+    margin: 0 auto;
+}
+
+#previewImpresion.formato-ticket .tk-center { text-align: center; }
+#previewImpresion.formato-ticket .tk-bold   { font-weight: 700; }
+#previewImpresion.formato-ticket .tk-small  { font-size: 10px; }
+
+#previewImpresion.formato-ticket .tk-line {
+    border-top: 1px dashed #000;
+    margin: 6px 0;
+}
+
+#previewImpresion.formato-ticket .tk-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#previewImpresion.formato-ticket .tk-item-name {
+    font-weight: 700;
+}
+
+#previewImpresion.formato-ticket .tk-item-detail {
+    display: flex;
+    justify-content: space-between;
+}
+
+#previewImpresion.formato-ticket .tk-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+#previewImpresion.formato-ticket .tk-total {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+/* ============================================================ */
+/* 🔥 PREVIEW EN MODAL — FACTURA CARTA                          */
+/* ============================================================ */
+/* Contenedor de la vista previa */
+#previewImpresion {
+    background: #fff;
+    margin: 0 auto;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    padding: 20px;
+    max-height: 520px;
+    overflow-y: auto;
+}
+
+/* Ancho del ticket 80mm */
+#previewImpresion.formato-ticket {
+    width: 302px;
+}
+
+/* Ancho de la factura carta */
+#previewImpresion.formato-carta {
+    width: 100%;
+    max-width: 720px;
+}
 
 </style>
 @endpush
@@ -1326,169 +1392,212 @@
     }
 
     function itemsVenta(venta) {
-        return (venta.detalles || []).map((d) => ({
-            nombre: d.nombre_producto || d.producto?.nombre || 'Producto',
-            cant:   Number(d.cantidad || 0),
-            precio: Number(d.precio_unitario || 0),
-            iva:    Number(d.iva_porcentaje || 0),
-            sub:    Number(d.subtotal || 0),
-        }));
+        return (venta.detalles || []).map((d) => {
+            const nombre = d.nombre_producto || d.nombre || d.producto?.nombre || 'Producto';
+            const cant   = Number(d.cantidad || 0);
+            const precio = Number(d.precio_unitario ?? d.precio ?? 0);
+            const iva    = Number(d.iva_porcentaje ?? d.iva ?? 0);
+            const sub    = Number(d.subtotal ?? (cant * precio));
+            return { nombre, cant, precio, iva, sub };
+        });
     }
 
-    function htmlTicket(venta) {
-        const items = itemsVenta(venta).map((it) => `
-            <div>${it.nombre}</div>
-            <div style="display:flex;justify-content:space-between;">
+function htmlTicket(venta) {
+    const items = itemsVenta(venta).map((it) => `
+        <div class="tk-item">
+            <div class="tk-item-name">${it.nombre}</div>
+            <div class="tk-item-detail">
                 <span>${it.cant} x ${money(it.precio)}</span>
                 <span>${money(it.sub)}</span>
             </div>
-        `).join('');
+        </div>
+    `).join('');
 
-        const num = venta.consecutivo || venta.numero_factura || venta.id;
+    const num = venta.consecutivo || venta.numero_factura || venta.id;
 
-        return `
-            <div class="ticket-center ticket-bold" style="font-size:14px;">VETCLOUD</div>
-            <div class="ticket-center ticket-small">
+    return `
+        <style>
+            .tk-wrap { font-family: 'Courier New', monospace; font-size: 12px; color: #000; line-height: 1.4; }
+            .tk-wrap .tk-center { text-align: center; }
+            .tk-wrap .tk-bold { font-weight: 700; }
+            .tk-wrap .tk-small { font-size: 10px; }
+            .tk-wrap .tk-line { border-top: 1px dashed #000; margin: 6px 0; }
+            .tk-wrap .tk-items { display: flex; flex-direction: column; gap: 4px; }
+            .tk-wrap .tk-item-name { font-weight: 700; }
+            .tk-wrap .tk-item-detail { display: flex; justify-content: space-between; }
+            .tk-wrap .tk-row { display: flex; justify-content: space-between; }
+            .tk-wrap .tk-total { font-weight: 700; font-size: 14px; margin-top: 4px; }
+        </style>
+
+        <div class="tk-wrap">
+            <div class="tk-center tk-bold" style="font-size:14px;">VETCLOUD</div>
+            <div class="tk-center tk-small">
                 NIT: 000.000.000-0<br>
                 Tel: (000) 000-0000<br>
                 ${venta.tenant?.direccion || 'Calle 00 #00-00'}
             </div>
-            <div class="ticket-line"></div>
-            <div class="ticket-center ticket-bold">TICKET DE VENTA</div>
-            <div class="ticket-center">No. ${num}</div>
-            <div class="ticket-small">${fechaVenta(venta)}</div>
-            <div class="ticket-line"></div>
+            <div class="tk-line"></div>
+            <div class="tk-center tk-bold">TICKET DE VENTA</div>
+            <div class="tk-center">No. ${num}</div>
+            <div class="tk-small tk-center">${fechaVenta(venta)}</div>
+            <div class="tk-line"></div>
 
-            <div class="ticket-small">
-                Cliente: ${nombreCliente(venta)}<br>
-                ${venta.cliente?.numero_documento ? `Doc: ${venta.cliente.numero_documento}<br>` : ''}
-                ${venta.mascota ? `Mascota: ${venta.mascota.nombre}<br>` : ''}
-                ${venta.usuario ? `Atendió: ${venta.usuario.name || venta.usuario.nombre || ''}<br>` : ''}
+            <div class="tk-small">
+                <div><strong>Cliente:</strong> ${nombreCliente(venta)}</div>
+                ${venta.cliente?.numero_documento ? `<div><strong>Doc:</strong> ${venta.cliente.numero_documento}</div>` : ''}
+                ${venta.usuario ? `<div><strong>Atendió:</strong> ${venta.usuario.name || venta.usuario.nombre || ''}</div>` : ''}
             </div>
-            <div class="ticket-line"></div>
+            <div class="tk-line"></div>
 
-            <div>${items}</div>
-            <div class="ticket-line"></div>
+            <div class="tk-items">${items}</div>
+            <div class="tk-line"></div>
 
-            <div style="display:flex;justify-content:space-between;">
-                <span>Subtotal</span><span>${money(venta.subtotal)}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;">
-                <span>IVA</span><span>${money(venta.iva)}</span>
-            </div>
-            ${Number(venta.descuento) ? `
-            <div style="display:flex;justify-content:space-between;">
-                <span>Descuento</span><span>-${money(venta.descuento)}</span>
-            </div>` : ''}
-            <div class="ticket-line"></div>
-            <div class="ticket-total">
-                <span>TOTAL</span><span>${money(venta.total)}</span>
-            </div>
-            <div class="ticket-line"></div>
+            <div class="tk-row"><span>Subtotal</span><span>${money(venta.subtotal)}</span></div>
+            <div class="tk-row"><span>IVA</span><span>${money(venta.iva)}</span></div>
+            ${Number(venta.descuento) ? `<div class="tk-row"><span>Descuento</span><span>-${money(venta.descuento)}</span></div>` : ''}
+            <div class="tk-line"></div>
+            <div class="tk-row tk-total"><span>TOTAL</span><span>${money(venta.total)}</span></div>
+            <div class="tk-line"></div>
 
-            <div class="ticket-small">
-                Método: ${(venta.metodo_pago || '').toUpperCase()}<br>
-                ${venta.metodo_pago === 'efectivo' && venta.monto_efectivo ? `Recibido: ${money(venta.monto_efectivo)}<br>` : ''}
-                ${venta.cambio ? `Cambio: ${money(venta.cambio)}<br>` : ''}
-                ${venta.referencia_pago ? `Ref: ${venta.referencia_pago}<br>` : ''}
-                Estado: ${(venta.estado || 'pagada').toUpperCase()}
+            <div class="tk-small">
+                <div><strong>Método:</strong> ${(venta.metodo_pago || '').toUpperCase()}</div>
+                ${venta.metodo_pago === 'efectivo' && venta.monto_efectivo ? `<div><strong>Recibido:</strong> ${money(venta.monto_efectivo)}</div>` : ''}
+                ${venta.cambio ? `<div><strong>Cambio:</strong> ${money(venta.cambio)}</div>` : ''}
+                ${venta.referencia_pago ? `<div><strong>Ref:</strong> ${venta.referencia_pago}</div>` : ''}
+                <div><strong>Estado:</strong> ${(venta.estado || 'pagada').toUpperCase()}</div>
             </div>
 
-            <div class="ticket-line"></div>
-            <div class="ticket-center ticket-small">
-                ${venta.observaciones ? `Obs: ${venta.observaciones}<br>` : ''}
+            <div class="tk-line"></div>
+            <div class="tk-center tk-small">
                 ¡Gracias por su compra!<br>
                 www.vetcloud.com
             </div>
-        `;
-    }
+        </div>
+    `;
+}
 
-    function htmlFactura(venta) {
-        const items = itemsVenta(venta).map((it) => `
-            <tr>
-                <td>${it.nombre}</td>
-                <td class="num">${it.cant}</td>
-                <td class="num">${money(it.precio)}</td>
-                <td class="num">${it.iva}%</td>
-                <td class="num">${money(it.sub)}</td>
-            </tr>
-        `).join('');
+     
+ function htmlFactura(venta) {
+    const items = itemsVenta(venta).map((it) => `
+        <tr>
+            <td>${it.nombre}</td>
+            <td class="fc-num">${it.cant}</td>
+            <td class="fc-num">${money(it.precio)}</td>
+            <td class="fc-num">${it.iva}%</td>
+            <td class="fc-num">${money(it.sub)}</td>
+        </tr>
+    `).join('');
 
-        const num = venta.consecutivo || venta.numero_factura || venta.id;
+    const num = venta.consecutivo || venta.numero_factura || venta.id;
 
-        return `
-            <div class="factura-header">
-                <div>
+    return `
+        <style>
+            .fc-wrap { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
+            .fc-wrap .fc-header {
+                display: flex; justify-content: space-between; align-items: flex-start;
+                border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 16px;
+            }
+            .fc-wrap .fc-header h2 { margin: 0 0 6px; font-size: 24px; }
+            .fc-wrap .fc-header p { margin: 3px 0; font-size: 11px; }
+            .fc-wrap .fc-header-right { text-align: right; }
+            .fc-wrap .fc-info {
+                display: flex; justify-content: space-between; gap: 20px;
+                margin-bottom: 18px; padding-bottom: 12px;
+                border-bottom: 1px solid #ccc;
+            }
+            .fc-wrap .fc-info-col { flex: 1; }
+            .fc-wrap .fc-info-col strong {
+                display: block; font-size: 10px; color: #555;
+                text-transform: uppercase; margin-bottom: 6px; letter-spacing: .5px;
+            }
+            .fc-wrap .fc-info-col p { margin: 2px 0; font-size: 11px; }
+            .fc-wrap .fc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+            .fc-wrap .fc-tabla th,
+            .fc-wrap .fc-tabla td {
+                border: 1px solid #ccc; padding: 8px 10px;
+                text-align: left; font-size: 11px;
+            }
+            .fc-wrap .fc-tabla th { background: #0E1B30; color: #fff; font-weight: 700; }
+            .fc-wrap .fc-num { text-align: right; }
+            .fc-wrap .fc-totales { display: flex; justify-content: flex-end; }
+            .fc-wrap .fc-totales table { min-width: 260px; font-size: 12px; }
+            .fc-wrap .fc-totales td { padding: 5px 10px; }
+            .fc-wrap .fc-total td {
+                font-weight: 700; font-size: 15px;
+                border-top: 2px solid #000; padding-top: 8px;
+            }
+            .fc-wrap .fc-footer {
+                margin-top: 26px; text-align: center; font-size: 10px; color: #666;
+                border-top: 1px solid #ddd; padding-top: 12px;
+            }
+        </style>
+
+        <div class="fc-wrap">
+            <div class="fc-header">
+                <div class="fc-header-left">
                     <h2>VETCLOUD</h2>
                     <p>NIT: 000.000.000-0</p>
                     <p>${venta.tenant?.direccion || 'Calle 00 #00-00 · Ciudad'}</p>
                     <p>Tel: (000) 000-0000</p>
                 </div>
-                <div style="text-align:right;">
-                    <h2 style="color:#0E1B30;">FACTURA</h2>
+                <div class="fc-header-right">
+                    <h2>FACTURA</h2>
                     <p><strong>No.</strong> ${num}</p>
                     <p><strong>Fecha:</strong> ${fechaVenta(venta)}</p>
                     <p><strong>Estado:</strong> ${(venta.estado || 'pagada').toUpperCase()}</p>
                 </div>
             </div>
 
-            <div class="factura-info">
-                <div>
-                    <strong>CLIENTE</strong>
-                    ${venta.cliente
-                        ? `${nombreCliente(venta)}<br>
-                           Doc: ${venta.cliente.numero_documento || '—'}<br>
-                           Tel: ${venta.cliente.telefono || '—'}`
-                        : 'Consumidor final'}
+            <div class="fc-info">
+                <div class="fc-info-col">
+                    <strong>Cliente</strong>
+                    <p>${venta.cliente ? nombreCliente(venta) : 'Consumidor final'}</p>
+                    ${venta.cliente?.numero_documento ? `<p>Doc: ${venta.cliente.numero_documento}</p>` : ''}
+                    ${venta.cliente?.telefono ? `<p>Tel: ${venta.cliente.telefono}</p>` : ''}
                 </div>
-                <div>
-                    <strong>MASCOTA</strong>
+                <div class="fc-info-col">
+                    <strong>Mascota</strong>
                     ${venta.mascota
-                        ? `${venta.mascota.nombre}<br>
-                           ${venta.mascota.especie || ''} ${venta.mascota.raza || ''}`
-                        : '—'}
+                        ? `<p>${venta.mascota.nombre}</p><p>${venta.mascota.especie || ''} ${venta.mascota.raza || ''}</p>`
+                        : '<p>—</p>'}
                 </div>
-                <div>
-                    <strong>PAGO</strong>
-                    Método: ${(venta.metodo_pago || '').toUpperCase()}<br>
-                    ${venta.referencia_pago ? `Ref: ${venta.referencia_pago}<br>` : ''}
-                    ${venta.cambio ? `Cambio: ${money(venta.cambio)}` : ''}
+                <div class="fc-info-col">
+                    <strong>Pago</strong>
+                    <p>Método: ${(venta.metodo_pago || '').toUpperCase()}</p>
+                    ${venta.referencia_pago ? `<p>Ref: ${venta.referencia_pago}</p>` : ''}
+                    ${venta.cambio ? `<p>Cambio: ${money(venta.cambio)}</p>` : ''}
                 </div>
             </div>
 
-            <table class="factura-tabla">
+            <table class="fc-tabla">
                 <thead>
                     <tr>
                         <th>Descripción</th>
-                        <th class="num">Cant.</th>
-                        <th class="num">Vr. Unit.</th>
-                        <th class="num">IVA</th>
-                        <th class="num">Subtotal</th>
+                        <th class="fc-num">Cant.</th>
+                        <th class="fc-num">Vr. Unit.</th>
+                        <th class="fc-num">IVA</th>
+                        <th class="fc-num">Subtotal</th>
                     </tr>
                 </thead>
                 <tbody>${items}</tbody>
             </table>
 
-            <div class="factura-totales">
+            <div class="fc-totales">
                 <table>
-                    <tr><td>Subtotal</td><td class="num">${money(venta.subtotal)}</td></tr>
-                    <tr><td>IVA</td><td class="num">${money(venta.iva)}</td></tr>
-                    ${Number(venta.descuento) ? `<tr><td>Descuento</td><td class="num">-${money(venta.descuento)}</td></tr>` : ''}
-                    <tr class="total"><td>TOTAL</td><td class="num">${money(venta.total)}</td></tr>
+                    <tr><td>Subtotal</td><td class="fc-num">${money(venta.subtotal)}</td></tr>
+                    <tr><td>IVA</td><td class="fc-num">${money(venta.iva)}</td></tr>
+                    ${Number(venta.descuento) ? `<tr><td>Descuento</td><td class="fc-num">-${money(venta.descuento)}</td></tr>` : ''}
+                    <tr class="fc-total"><td>TOTAL</td><td class="fc-num">${money(venta.total)}</td></tr>
                 </table>
             </div>
 
-            ${venta.observaciones ? `
-            <div style="margin-top:12px;font-size:11px;">
-                <strong>Observaciones:</strong> ${venta.observaciones}
-            </div>` : ''}
-
-            <div class="factura-footer">
+            <div class="fc-footer">
                 Gracias por preferirnos · Documento generado por VetCloud POS<br>
                 ${venta.usuario ? `Atendido por: ${venta.usuario.name || venta.usuario.nombre || ''}` : ''}
             </div>
-        `;
-    }
+        </div>
+    `;
+}
 
     function aplicarFormato(formato) {
         formatoActual = formato;
@@ -1513,49 +1622,16 @@
             ? htmlTicket(ventaImpresion)
             : htmlFactura(ventaImpresion);
 
-        const estilos = formatoActual === 'ticket'
-            ? `
-                @page { size: 80mm auto; margin: 0; }
-                body { margin: 0; }
-                .ticket-wrapper {
-                    width: 80mm;
-                    padding: 4mm 3mm;
-                    font-family: 'Courier New', monospace;
-                    font-size: 11px;
-                    color: #000;
-                }
-                .ticket-line { border-top: 1px dashed #000; margin: 4px 0; }
-                .ticket-center { text-align: center; }
-                .ticket-right  { text-align: right; }
-                .ticket-bold   { font-weight: 700; }
-                .ticket-small  { font-size: 10px; }
-                .ticket-total  {
-                    display: flex; justify-content: space-between;
-                    font-weight: 700; font-size: 13px; margin-top: 4px;
-                }
-            `
-            : `
-                @page { size: letter; margin: 12mm; }
-                body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
-                .factura-header {
-                    display: flex; justify-content: space-between;
-                    border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px;
-                }
-                .factura-header h2 { margin: 0; font-size: 22px; }
-                .factura-header p  { margin: 2px 0; font-size: 12px; }
-                .factura-info { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 12px; }
-                .factura-info div { flex: 1; }
-                .factura-info strong { display: block; margin-bottom: 4px; font-size: 11px; color:#555; }
-                .factura-tabla { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 12px; }
-                .factura-tabla th, .factura-tabla td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
-                .factura-tabla th { background: #0E1B30; color: #fff; }
-                .factura-tabla .num { text-align: right; }
-                .factura-totales { display: flex; justify-content: flex-end; font-size: 13px; }
-                .factura-totales table { min-width: 240px; }
-                .factura-totales td { padding: 4px 8px; }
-                .factura-totales tr.total td { font-weight: 700; font-size: 15px; border-top: 2px solid #000; }
-                .factura-footer { margin-top: 20px; text-align: center; font-size: 11px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
-            `;
+        // Estilos base para la ventana de impresión (los .tk-* y .fc-* ya van embebidos)
+        const estilosBase = `
+            @page { size: ${formatoActual === 'ticket' ? '80mm auto; margin: 0' : 'letter; margin: 12mm'}; }
+            * { box-sizing: border-box; }
+            body { margin: 0; }
+            ${formatoActual === 'ticket'
+                ? '.tk-wrap { width: 80mm; padding: 4mm 3mm; }'
+                : '.fc-wrap { padding: 6mm; }'
+            }
+        `;
 
         const wrapper = document.createElement('div');
         wrapper.className = formatoActual === 'ticket' ? 'ticket-wrapper' : 'factura-wrapper';
@@ -1569,14 +1645,42 @@
             <head>
                 <meta charset="UTF-8">
                 <title>${formatoActual === 'ticket' ? 'Ticket' : 'Factura'} - ${ventaImpresion.consecutivo || ventaImpresion.id}</title>
-                <style>${estilos}</style>
+                <style>${estilosBase}</style>
             </head>
-            <body onload="window.print(); window.onafterprint = () => window.close();">
+            <body>
                 ${wrapper.outerHTML}
             </body>
             </html>
         `);
         ventana.document.close();
+
+        // 🔥 Esperar a que la ventana cargue, imprimir y cerrar
+        ventana.onload = () => {
+            ventana.focus();
+            ventana.print();
+        };
+
+        // 🔥 Cuando la ventana de impresión se cierre (después de print o cancel),
+        //    cerrar el modal del POS
+        const cerrarModal = () => {
+            if (window.jQuery) {
+                window.jQuery('#modalVistaPrevia').modal('hide');
+            }
+        };
+
+        // Chrome/Edge/Firefox: onafterprint se dispara después de imprimir/cancelar
+        ventana.onafterprint = () => {
+            cerrarModal();
+            ventana.close();
+        };
+
+        // Fallback: detectar cierre de la ventana
+        const checkCerrada = setInterval(() => {
+            if (ventana.closed) {
+                clearInterval(checkCerrada);
+                cerrarModal();
+            }
+        }, 500);
     }
 
     async function abrirVistaPrevia(ventaId) {
