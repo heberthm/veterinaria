@@ -121,96 +121,97 @@
     </div>
 
     {{-- ===================== COLUMNA DERECHA: carrito ===================== --}}
-    <div class="vc-cart-panel">
-        <div class="vc-cart-header">
-            <span><h7>Factura venta No. </h7><span id="consecutivoVenta">{{ $siguienteConsecutivo }}</span></span>
-            <button type="button" id="btnVaciarCarrito" title="Vaciar carrito de compra"><i class="fas fa-trash"></i></button>
-        </div>
-
-        <div class="vc-cart-body">
-            <div class="vc-cart-items" id="carritoItems">
-                <div class="vc-cart-empty" id="carritoVacio">
-                    <i class="fas fa-shopping-cart"></i>
-                    Agrega productos desde el catálogo
-                </div>
-            </div>
-
-            <div class="vc-field mb-2">
-                <textarea id="observacionVenta" class="form-control" rows="2" placeholder="Agregar observación..."></textarea>
-            </div>
-
-            <div class="vc-cart-totals">
-                <div class="row"><span>Subtotal</span><strong id="txtSubtotal">$0</strong></div>
-                <div class="row">
-                    <span>Descuento <input type="number" id="inputDescuento" min="0" max="100" value="0">%</span>
-                    <strong id="txtDescuento">$0</strong>
-                </div>
-                <div class="row"><span>IVA (19%)</span><strong id="txtIva">$0</strong></div>
-                <div class="total-row">
-                    <span class="label">TOTAL</span>
-                    <span class="value" id="txtTotal">$0</span>
-                </div>
-            </div>
-
-    
-            <div class="vc-payment-methods" id="metodosPago">
-                <button type="button" class="is-active" data-metodo="efectivo"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
-                <button type="button" data-metodo="tarjeta"><i class="far fa-credit-card"></i> Tarjeta</button>
-                <button type="button" data-metodo="transferencia"><i class="fas fa-university"></i> Transferencia</button>
-                <button type="button" data-metodo="mixto"><i class="fas fa-random"></i> Mixto</button>
-            </div>
-
-            <div class="vc-field vc-pos-typeahead">
-                <label>Cliente (Opcional)</label>
-                <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente por nombre, documento o teléfono...">
-                <input type="hidden" id="clienteIdSeleccionado">
-                <div class="vc-pos-typeahead-results" id="resultadosCliente"></div>
-            </div>
-
-            <div class="vc-field vc-pos-typeahead">
-                <label>Mascota (Opcional)</label>
-                <input type="text" id="buscarMascota" class="form-control" placeholder="Buscar mascota...">
-                <input type="hidden" id="mascotaIdSeleccionada">
-                <div class="vc-pos-typeahead-results" id="resultadosMascota"></div>
-            </div>
-        </div>
-
-        <div class="vc-cart-footer">
-          <button type="button" class="vc-btn-cobrar mb-2" style="width:100%" id="btnCobrar" {{ (!$cajaActual || !$cajaActual->estaAbierta()) ? 'disabled' : '' }}> <span id="btnCobrarTotal">$0</span>
-            <button type="button" class="vc-btn-guardar" style="width:100%" id="btnGuardarVenta" {{ !$cajaActual->estaAbierta() ? 'disabled' : '' }}>
-                <i class="far fa-save"></i> Guardar Venta
-            </button>
-        </div>
+ <div class="vc-cart-panel">
+    <div class="vc-cart-header">
+        <span>Factura venta No. <span id="consecutivoVenta">{{ $siguienteConsecutivo }}</span></span>
+        <button type="button" id="btnVaciarCarrito"><i class="fas fa-trash"></i></button>
     </div>
-</div>
 
-{{-- ===================== MODAL ABRIR CAJA ===================== --}}
-<div class="modal fade" id="modalAbrirCaja" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content vc-modal-content">
-            <form id="formAbrirCajaPos">
-                @csrf
-                <input type="hidden" name="caja_id" value="{{ $caja->id }}">
-                <div class="modal-header vc-modal-header">
-                    <h5 class="modal-title"><i class="fas fa-cash-register"></i> Abrir Caja</h5>
-                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <div class="vc-cart-body">
+        <div class="vc-cart-items" id="carritoItems">
+            <div class="vc-cart-empty" id="carritoVacio">
+                <i class="fas fa-shopping-cart"></i>
+                Agrega productos desde el catálogo
+            </div>
+        </div>
+
+        <div class="vc-cart-totals">
+            <div class="row"><span>Subtotal</span><strong id="txtSubtotal">$0</strong></div>
+
+            {{-- 🔥 IVA seleccionable --}}
+            <div class="row vc-iva-row">
+                <span class="vc-iva-label">IVA</span>
+                <div class="vc-iva-controls">
+                    <select id="selectIva" class="vc-select-iva">
+                        <option value="0">0%</option>
+                        <option value="5">5%</option>
+                        <option value="10">10%</option>
+                        <option value="16">16%</option>
+                        <option value="19" selected>19%</option>
+                    </select>
+                    <strong id="txtIva">$0</strong>
                 </div>
-                <div class="modal-body">
-                    <div class="vc-field">
-                        <label>Saldo inicial (efectivo en caja)</label>
-                        <input type="number" name="saldo_inicial" class="form-control" step="100" value="0" required>
-                    </div>
-                    <div class="vc-field">
-                        <label>Observaciones</label>
-                        <textarea name="observaciones" class="form-control" rows="2"></textarea>
-                    </div>
-                    <div id="erroresAbrirCaja" class="text-danger small"></div>
-                </div>
-                <div class="modal-footer vc-modal-footer">
-                    <button type="button" class="vc-btn vc-btn-light" data-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="vc-btn vc-btn-success"><i class="fas fa-check"></i> Abrir Caja</button>
-                </div>
-            </form>
+            </div>
+
+            <div class="row">
+                <span>Descuento <input type="number" id="inputDescuento" min="0" max="100" value="0">%</span>
+                <strong id="txtDescuento">$0</strong>
+            </div>
+
+            <div class="total-row">
+                <span class="label">TOTAL</span>
+                <span class="value" id="txtTotal">$0</span>
+            </div>
+        </div>
+
+        {{-- 🔥 Efectivo recibido + cambio --}}
+        <div class="vc-efectivo-bloque">
+            <label class="vc-efectivo-label">Efectivo Recibido</label>
+            <input type="number" id="inputEfectivoRecibido" class="vc-input-efectivo"
+                   min="0" step="100" value="0" placeholder="0">
+            <div class="vc-cambio-barra" id="cambioBarra">
+                <span>Cambio:</span>
+                <strong id="txtCambio">$0</strong>
+            </div>
+        </div>
+
+        {{-- 🔥 Métodos de pago --}}
+        <div class="vc-payment-methods" id="metodosPago">
+            <button type="button" class="is-active" data-metodo="efectivo"><i class="fas fa-money-bill-wave"></i> Efectivo</button>
+            <button type="button" data-metodo="tarjeta"><i class="far fa-credit-card"></i> Tarjeta</button>
+            <button type="button" data-metodo="transferencia"><i class="fas fa-university"></i> Transferencia</button>
+            <button type="button" data-metodo="mixto"><i class="fas fa-random"></i> Mixto</button>
+        </div>
+
+        {{-- 🔥 Cliente (se queda) --}}
+        <div class="vc-field vc-pos-typeahead">
+            <label>Cliente (Opcional)</label>
+            <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente por nombre, documento o teléfono...">
+            <input type="hidden" id="clienteIdSeleccionado">
+            <div class="vc-pos-typeahead-results" id="resultadosCliente"></div>
+        </div>
+
+        {{-- 🔥 Tipo de comprobante --}}
+        <div class="vc-tipo-comprobante">
+            <label class="vc-tipo-comprobante__label">Tipo de Comprobante</label>
+            <select id="tipoComprobante" class="vc-select">
+                <option value="ticket">Ticket (80mm)</option>
+                <option value="carta">Factura Carta</option>
+                <option value="ambos">Ticket + Factura</option>
+            </select>
+        </div>
+
+        {{-- 🔥 Botones de acción --}}
+        <div class="vc-acciones-pos">
+            <button type="button" class="vc-accion-btn vc-accion-btn--cancelar" id="btnCancelarVenta">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+            <button type="button" class="vc-accion-btn vc-accion-btn--imprimir" id="btnImprimirVenta">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+            <button type="button" class="vc-accion-btn vc-accion-btn--cobrar" id="btnCobrarConImpresion">
+                <i class="fas fa-check"></i> COBRAR
+            </button>
         </div>
     </div>
 </div>
@@ -451,6 +452,57 @@
     </div>
 </div>
 
+{{-- ============================================================ --}}
+{{-- 🔥 MODAL: VISTA PREVIA DE IMPRESIÓN --}}
+{{-- ============================================================ --}}
+<div class="modal fade" id="modalVistaPrevia" tabindex="-1" role="dialog" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" style="font-weight:700;font-size:15px;">
+                    <i class="fas fa-print"></i> Vista previa de impresión
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="background:#F1F4F9;padding:20px;">
+
+                {{-- Selector de formato --}}
+                <div class="btn-group btn-group-toggle mb-3" data-toggle="buttons" style="width:100%;display:flex;">
+                    <label class="btn btn-outline-dark active" style="flex:1;">
+                        <input type="radio" name="formatoImpresion" value="ticket" checked>
+                        <i class="fas fa-receipt"></i> Ticket 80mm
+                    </label>
+                    <label class="btn btn-outline-dark" style="flex:1;">
+                        <input type="radio" name="formatoImpresion" value="carta">
+                        <i class="fas fa-file-invoice"></i> Factura Carta
+                    </label>
+                </div>
+
+                {{-- Contenedor de la vista previa --}}
+                <div id="previewImpresion" style="
+                    background:#fff;
+                    margin:0 auto;
+                    box-shadow:0 2px 12px rgba(0,0,0,.08);
+                    padding:20px;
+                    max-height:520px;
+                    overflow-y:auto;
+                    transition:width .2s;
+                ">
+                    {{-- Aquí se inyecta el HTML del ticket o la factura --}}
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="vc-btn vc-btn-light" data-dismiss="modal">Cerrar</button>
+                <button type="button" class="vc-btn" onclick="imprimirFormatoActual()"
+                        style="background:#0E1B30;color:#fff;">
+                    <i class="fas fa-print"></i> Imprimir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 @endsection
 
@@ -582,6 +634,272 @@
         .vc-product-grid { grid-template-columns: repeat(2, 1fr); }
         .vc-cart-panel { position: static; }
     }
+
+        /* ============================================================ */
+        /* 🔥 IVA SELECCIONABLE                                          */
+        /* ============================================================ */
+        .vc-iva-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+        }
+
+        .vc-iva-label {
+            min-width: 70px;
+            color: #64748B;
+            font-size: 13px;
+            text-align: left;
+        }
+
+       .vc-iva-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+        .vc-select-iva {
+            width: 66px;
+            padding: 3px 6px;
+            font-size: 12px;
+            border: 1px solid #E7EBF3;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            color: #1A2332;
+        }
+
+        .vc-select-iva:focus {
+            outline: none;
+            border-color: #2F6FED;
+        }
+
+        /* ============================================================ */
+        /* 🔥 EFECTIVO RECIBIDO + CAMBIO                                 */
+        /* ============================================================ */
+        .vc-efectivo-bloque {
+            margin: 14px 0 4px;
+        }
+
+        .vc-efectivo-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1A2332;
+            margin-bottom: 6px;
+        }
+
+        .vc-input-efectivo {
+            width: 100%;
+            padding: 11px 14px;
+            font-size: 14px;
+            border: 1px solid #E7EBF3;
+            border-radius: 9px;
+            background: #fff;
+            color: #1A2332;
+            margin-bottom: 8px;
+        }
+
+        .vc-input-efectivo:focus {
+            outline: none;
+            border-color: #2F6FED;
+            box-shadow: 0 0 0 3px rgba(47,111,237,.12);
+        }
+
+        .vc-cambio-barra {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #16A34A;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 9px;
+            font-weight: 700;
+            font-size: 14px;
+            transition: background .2s;
+        }
+
+        .vc-cambio-barra.is-insuficiente {
+            background: #DC3545;
+        }
+
+        .vc-cambio-barra strong {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        /* ============================================================ */
+        /* 🔥 TIPO DE COMPROBANTE + BOTONES                             */
+        /* ============================================================ */
+        .vc-tipo-comprobante {
+            margin-top: 14px;
+            margin-bottom: 12px;
+        }
+
+        .vc-tipo-comprobante__label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1A2332;
+            margin-bottom: 6px;
+        }
+
+        .vc-select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 13px;
+            border: 1px solid #E7EBF3;
+            border-radius: 9px;
+            background: #fff;
+            color: #1A2332;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        .vc-select:focus {
+            outline: none;
+            border-color: #2F6FED;
+            box-shadow: 0 0 0 3px rgba(47,111,237,.12);
+        }
+
+        .vc-acciones-pos {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.1fr;
+            gap: 8px;
+        }
+
+        .vc-accion-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 11px 8px;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: transform .1s, filter .15s;
+            white-space: nowrap;
+        }
+
+        .vc-accion-btn:hover  { filter: brightness(1.08); }
+        .vc-accion-btn:active { transform: translateY(1px); }
+        .vc-accion-btn i { font-size: 13px; }
+
+        .vc-accion-btn--cancelar { background: #DC3545; }
+        .vc-accion-btn--cancelar:hover { background: #C82333; }
+
+        .vc-accion-btn--imprimir { background: #17A2B8; }
+        .vc-accion-btn--imprimir:hover { background: #138496; }
+
+        .vc-accion-btn--cobrar { background: #16A34A; font-weight: 900; letter-spacing: .3px; }
+        .vc-accion-btn--cobrar:hover { background: #15803D; }
+
+        .vc-accion-btn:disabled { opacity: .55; cursor: not-allowed; filter: none; }
+
+            /* ============================================================ */
+        /* 🔥 TIPO DE COMPROBANTE + BOTONES DE ACCIÓN                   */
+        /* ============================================================ */
+        .vc-tipo-comprobante {
+            margin-top: 14px;
+            margin-bottom: 12px;
+        }
+
+        .vc-tipo-comprobante__label {
+            display: block;
+            font-size: 13px;
+            font-weight: 700;
+            color: #1A2332;
+            margin-bottom: 6px;
+        }
+
+        .vc-select {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 13px;
+            border: 1px solid #E7EBF3;
+            border-radius: 9px;
+            background: #fff;
+            color: #1A2332;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 36px;
+            cursor: pointer;
+        }
+
+        .vc-select:focus {
+            outline: none;
+            border-color: #2F6FED;
+            box-shadow: 0 0 0 3px rgba(47, 111, 237, 0.12);
+        }
+
+        /* Contenedor de los 3 botones */
+        .vc-acciones-pos {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .vc-accion-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 11px 8px;
+            font-size: 12.5px;
+            font-weight: 800;
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: transform .1s, filter .15s;
+            white-space: nowrap;
+        }
+
+        .vc-accion-btn:hover  { filter: brightness(1.08); }
+        .vc-accion-btn:active { transform: translateY(1px); }
+
+        .vc-accion-btn i { font-size: 13px; }
+
+        /* Cancelar */
+        .vc-accion-btn--cancelar {
+            background: #DC3545;
+        }
+        .vc-accion-btn--cancelar:hover { background: #C82333; }
+
+        /* Imprimir */
+        .vc-accion-btn--imprimir {
+            background: #17A2B8;
+        }
+        .vc-accion-btn--imprimir:hover { background: #138496; }
+
+        /* Cobrar */
+        .vc-accion-btn--cobrar {
+            background: #16A34A;
+            font-weight: 900;
+            letter-spacing: .3px;
+        }
+        .vc-accion-btn--cobrar:hover { background: #15803D; }
+
+        .vc-accion-btn:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+            filter: none;
+        }
+
 </style>
 @endpush
 
@@ -591,7 +909,6 @@
 (function () {
     'use strict';
 
-    // jQuery con alias propio para no chocar con el helper $ nativo
     const $j = window.jQuery;
 
     const cfg = {
@@ -602,6 +919,7 @@
         rutaCajaCerrar: "{{ route('caja.cerrar') }}",
         csrfToken: "{{ csrf_token() }}",
         cajaAbierta: {{ $caja->estaAbierta() ? 'true' : 'false' }},
+        rutaVentaImprimir: "{{ route('ventas.imprimir', ['venta' => '__ID__']) }}",
     };
 
     const fmt = (n) => '$' + Math.round(n).toLocaleString('es-CO');
@@ -610,87 +928,106 @@
     let mascotaId = null;
     let metodoPago = 'efectivo';
     let datosPago = null;
+    let tipoComprobante = 'ticket';
+    let ventaImpresion = null;
+    let formatoActual = 'ticket';
 
-    // Helpers nativos
-    const $ = (sel) => document.querySelector(sel);
+    const $  = (sel) => document.querySelector(sel);
     const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-    // ---------------- Carrito ----------------
+    // ============================================================
+    // 🔥 TOTALES
+    // ============================================================
     function calcularTotales() {
-        let subtotal = 0, iva = 0;
+        const ivaPct = parseFloat(document.querySelector('#selectIva')?.value || 19) || 0;
+
+        let subtotal = 0;
         Object.values(carrito).forEach((item) => {
-            const sub = item.precio * item.cantidad;
-            subtotal += sub;
-            iva += sub * (item.iva / 100);
+            subtotal += item.precio * item.cantidad;
         });
-        const descuentoPct = parseFloat($('#inputDescuento')?.value || 0) || 0;
+
+        const iva = subtotal * (ivaPct / 100);
+        const descuentoPct = parseFloat(document.querySelector('#inputDescuento')?.value || 0) || 0;
         const descuentoValor = subtotal * (descuentoPct / 100);
         const total = subtotal - descuentoValor + iva;
-        return { subtotal, iva, descuentoValor, total };
+
+        return { subtotal, iva, descuentoValor, total, ivaPct };
     }
 
-  function renderCarrito() {
-    const contenedor = document.querySelector('#carritoItems');
-    if (!contenedor) {
-        console.error('❌ #carritoItems no existe en el DOM');
-        return;
+    // ============================================================
+    // 🔥 CAMBIO
+    // ============================================================
+    function actualizarCambio() {
+        const { total } = calcularTotales();
+        const $recibido  = document.querySelector('#inputEfectivoRecibido');
+        const $barra     = document.querySelector('#cambioBarra');
+        const $txtCambio = document.querySelector('#txtCambio');
+
+        if (!$recibido || !$barra || !$txtCambio) return;
+
+        const recibido = parseFloat($recibido.value || 0) || 0;
+        const cambio = recibido - total;
+
+        if (cambio < 0) {
+            $barra.classList.add('is-insuficiente');
+            $txtCambio.textContent = 'Faltan ' + fmt(Math.abs(cambio));
+        } else {
+            $barra.classList.remove('is-insuficiente');
+            $txtCambio.textContent = fmt(cambio);
+        }
     }
 
-    const items = Object.values(carrito);
-    console.log('🟢 renderCarrito items:', items.length, items);
+    // ============================================================
+    // 🔥 RENDER DEL CARRITO
+    // ============================================================
+    function renderCarrito() {
+        const contenedor = document.querySelector('#carritoItems');
+        if (!contenedor) {
+            console.error('❌ No existe #carritoItems en el DOM');
+            return;
+        }
 
-    // ---------- 1. Render ----------
-    try {
+        const items = Object.values(carrito);
+
+        // ---------- 1. Pintar items ----------
         contenedor.innerHTML = items.length === 0
             ? `<div class="vc-cart-empty"><i class="fas fa-shopping-cart"></i>Agrega productos desde el catálogo</div>`
             : items.map((item) => `
                 <div class="vc-cart-item" data-id="${item.id}">
                     <div class="vc-cart-item__icon"><i class="fas fa-capsules"></i></div>
                     <div class="vc-cart-item__info">
-                        <strong>${item.nombre }</strong>
-                       
+                        <strong>${item.nombre}</strong>                      
                     </div>
                     <div class="vc-cart-item__qty">
                         <button type="button" class="btn-qty-menos" data-id="${item.id}">-</button>
                         <span>${item.cantidad}</span>
                         <button type="button" class="btn-qty-mas" data-id="${item.id}">+</button>
                     </div>
-                    <div class="vc-cart-item__subtotal">${fmt(item.precio * item.cantidad)}</div>
-                   
+                    <div class="vc-cart-item__subtotal">${fmt(item.precio * item.cantidad)}</div>                   
                 </div>
             `).join('');
-    } catch (err) {
-        console.error('❌ Error al pintar items:', err);
-    }
 
-    // ---------- 2. Totales (protegido) ----------
-    try {
+        // ---------- 2. Totales ----------
         const { subtotal, iva, descuentoValor, total } = calcularTotales();
-        const $sub = document.querySelector('#txtSubtotal');
-        const $iva = document.querySelector('#txtIva');
-        const $desc = document.querySelector('#txtDescuento');
-        const $tot = document.querySelector('#txtTotal');
-        const $btnTotal = document.querySelector('#btnCobrarTotal');
+        const $subtotal = document.querySelector('#txtSubtotal');
+        const $iva      = document.querySelector('#txtIva');
+        const $desc     = document.querySelector('#txtDescuento');
+        const $total    = document.querySelector('#txtTotal');
 
-        if ($sub) $sub.textContent = fmt(subtotal);
-        if ($iva) $iva.textContent = fmt(iva);
-        if ($desc) $desc.textContent = fmt(descuentoValor);
-        if ($tot) $tot.textContent = fmt(total);
-        if ($btnTotal) $btnTotal.textContent = fmt(total);
-    } catch (err) {
-        console.error('❌ Error al calcular totales:', err);
-    }
+        if ($subtotal) $subtotal.textContent = fmt(subtotal);
+        if ($iva)      $iva.textContent      = fmt(iva);
+        if ($desc)     $desc.textContent     = fmt(descuentoValor);
+        if ($total)    $total.textContent    = fmt(total);
 
-    // ---------- 3. Botones cobrar/guardar ----------
-    const sinItems = items.length === 0;
-    const $cobrar = document.querySelector('#btnCobrar');
-    const $guardar = document.querySelector('#btnGuardarVenta');
-    if ($cobrar) $cobrar.disabled = sinItems || !cfg.cajaAbierta;
-    if ($guardar) $guardar.disabled = sinItems || !cfg.cajaAbierta;
+        // ---------- 3. Cambio ----------
+        actualizarCambio();
 
-    // ---------- 4. Scroll a partir del 3er ítem ----------
-    try {
-        const LIMITE_ITEMS = 2;
+        // ---------- 4. Estado botón COBRAR ----------
+        const $btnCobrar = document.querySelector('#btnCobrarConImpresion');
+        if ($btnCobrar) $btnCobrar.disabled = items.length === 0;
+
+        // ---------- 5. Scroll automático a partir del 3er item ----------
+        const LIMITE_ITEMS = 3;
         if (items.length > LIMITE_ITEMS) {
             const itemsDOM = contenedor.querySelectorAll('.vc-cart-item');
             let alturaMax = 0;
@@ -698,7 +1035,7 @@
                 const el = itemsDOM[i];
                 if (!el) continue;
                 const rect = el.getBoundingClientRect();
-                const est = window.getComputedStyle(el);
+                const est  = window.getComputedStyle(el);
                 alturaMax += rect.height
                     + parseFloat(est.marginTop || 0)
                     + parseFloat(est.marginBottom || 0);
@@ -710,24 +1047,23 @@
             contenedor.style.maxHeight = '';
             contenedor.style.overflowY = '';
         }
-    } catch (err) {
-        console.error('❌ Error al ajustar scroll:', err);
-    }
 
-    // ---------- 5. Re-enganchar listeners ----------
-    document.querySelectorAll('.btn-qty-mas').forEach((b) => {
-        b.addEventListener('click', () => cambiarCantidad(b.dataset.id, 1));
-    });
-    document.querySelectorAll('.btn-qty-menos').forEach((b) => {
-        b.addEventListener('click', () => cambiarCantidad(b.dataset.id, -1));
-    });
-    document.querySelectorAll('.btn-quitar').forEach((b) => {
-        b.addEventListener('click', () => {
-            delete carrito[b.dataset.id];
-            renderCarrito();
+        // ---------- 6. Re-enganchar listeners ----------
+        document.querySelectorAll('.btn-qty-mas').forEach((b) => {
+            b.addEventListener('click', () => cambiarCantidad(b.dataset.id, 1));
         });
-    });
-}
+
+        document.querySelectorAll('.btn-qty-menos').forEach((b) => {
+            b.addEventListener('click', () => cambiarCantidad(b.dataset.id, -1));
+        });
+
+        document.querySelectorAll('.btn-quitar').forEach((b) => {
+            b.addEventListener('click', () => {
+                delete carrito[b.dataset.id];
+                renderCarrito();
+            });
+        });
+    }
 
     function cambiarCantidad(id, delta) {
         const item = carrito[id];
@@ -757,7 +1093,9 @@
         renderCarrito();
     }
 
-    // ---------------- Catálogo ----------------
+    // ============================================================
+    // 🔥 CATÁLOGO
+    // ============================================================
     function filtrarCatalogo() {
         const tipoActivo = $('.vc-pos-tabs button.is-active')?.dataset.tab || 'producto';
         const catActiva = $('.vc-pos-cats button.is-active')?.dataset.cat || 'todos';
@@ -771,7 +1109,9 @@
         });
     }
 
-    // ---------------- Typeahead ----------------
+    // ============================================================
+    // 🔥 TYPEAHEAD
+    // ============================================================
     function inicializarTypeahead(inputSel, resultsSel, url, hiddenSel, onSelect) {
         const input = $(inputSel), results = $(resultsSel);
         let timeoutId = null;
@@ -967,17 +1307,310 @@
     }
 
     // ============================================================
+    // 🔥 IMPRESIÓN
+    // ============================================================
+    const money = (n) => '$' + Number(n || 0).toLocaleString('es-CO');
+
+    function fechaVenta(venta) {
+        const f = venta.fecha || venta.created_at;
+        if (!f) return '—';
+        return new Date(f).toLocaleString('es-CO', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    }
+
+    function nombreCliente(venta) {
+        if (!venta.cliente) return 'Consumidor final';
+        return `${venta.cliente.nombres || ''} ${venta.cliente.apellidos || ''}`.trim() || 'Consumidor final';
+    }
+
+    function itemsVenta(venta) {
+        return (venta.detalles || []).map((d) => ({
+            nombre: d.nombre_producto || d.producto?.nombre || 'Producto',
+            cant:   Number(d.cantidad || 0),
+            precio: Number(d.precio_unitario || 0),
+            iva:    Number(d.iva_porcentaje || 0),
+            sub:    Number(d.subtotal || 0),
+        }));
+    }
+
+    function htmlTicket(venta) {
+        const items = itemsVenta(venta).map((it) => `
+            <div>${it.nombre}</div>
+            <div style="display:flex;justify-content:space-between;">
+                <span>${it.cant} x ${money(it.precio)}</span>
+                <span>${money(it.sub)}</span>
+            </div>
+        `).join('');
+
+        const num = venta.consecutivo || venta.numero_factura || venta.id;
+
+        return `
+            <div class="ticket-center ticket-bold" style="font-size:14px;">VETCLOUD</div>
+            <div class="ticket-center ticket-small">
+                NIT: 000.000.000-0<br>
+                Tel: (000) 000-0000<br>
+                ${venta.tenant?.direccion || 'Calle 00 #00-00'}
+            </div>
+            <div class="ticket-line"></div>
+            <div class="ticket-center ticket-bold">TICKET DE VENTA</div>
+            <div class="ticket-center">No. ${num}</div>
+            <div class="ticket-small">${fechaVenta(venta)}</div>
+            <div class="ticket-line"></div>
+
+            <div class="ticket-small">
+                Cliente: ${nombreCliente(venta)}<br>
+                ${venta.cliente?.numero_documento ? `Doc: ${venta.cliente.numero_documento}<br>` : ''}
+                ${venta.mascota ? `Mascota: ${venta.mascota.nombre}<br>` : ''}
+                ${venta.usuario ? `Atendió: ${venta.usuario.name || venta.usuario.nombre || ''}<br>` : ''}
+            </div>
+            <div class="ticket-line"></div>
+
+            <div>${items}</div>
+            <div class="ticket-line"></div>
+
+            <div style="display:flex;justify-content:space-between;">
+                <span>Subtotal</span><span>${money(venta.subtotal)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;">
+                <span>IVA</span><span>${money(venta.iva)}</span>
+            </div>
+            ${Number(venta.descuento) ? `
+            <div style="display:flex;justify-content:space-between;">
+                <span>Descuento</span><span>-${money(venta.descuento)}</span>
+            </div>` : ''}
+            <div class="ticket-line"></div>
+            <div class="ticket-total">
+                <span>TOTAL</span><span>${money(venta.total)}</span>
+            </div>
+            <div class="ticket-line"></div>
+
+            <div class="ticket-small">
+                Método: ${(venta.metodo_pago || '').toUpperCase()}<br>
+                ${venta.metodo_pago === 'efectivo' && venta.monto_efectivo ? `Recibido: ${money(venta.monto_efectivo)}<br>` : ''}
+                ${venta.cambio ? `Cambio: ${money(venta.cambio)}<br>` : ''}
+                ${venta.referencia_pago ? `Ref: ${venta.referencia_pago}<br>` : ''}
+                Estado: ${(venta.estado || 'pagada').toUpperCase()}
+            </div>
+
+            <div class="ticket-line"></div>
+            <div class="ticket-center ticket-small">
+                ${venta.observaciones ? `Obs: ${venta.observaciones}<br>` : ''}
+                ¡Gracias por su compra!<br>
+                www.vetcloud.com
+            </div>
+        `;
+    }
+
+    function htmlFactura(venta) {
+        const items = itemsVenta(venta).map((it) => `
+            <tr>
+                <td>${it.nombre}</td>
+                <td class="num">${it.cant}</td>
+                <td class="num">${money(it.precio)}</td>
+                <td class="num">${it.iva}%</td>
+                <td class="num">${money(it.sub)}</td>
+            </tr>
+        `).join('');
+
+        const num = venta.consecutivo || venta.numero_factura || venta.id;
+
+        return `
+            <div class="factura-header">
+                <div>
+                    <h2>VETCLOUD</h2>
+                    <p>NIT: 000.000.000-0</p>
+                    <p>${venta.tenant?.direccion || 'Calle 00 #00-00 · Ciudad'}</p>
+                    <p>Tel: (000) 000-0000</p>
+                </div>
+                <div style="text-align:right;">
+                    <h2 style="color:#0E1B30;">FACTURA</h2>
+                    <p><strong>No.</strong> ${num}</p>
+                    <p><strong>Fecha:</strong> ${fechaVenta(venta)}</p>
+                    <p><strong>Estado:</strong> ${(venta.estado || 'pagada').toUpperCase()}</p>
+                </div>
+            </div>
+
+            <div class="factura-info">
+                <div>
+                    <strong>CLIENTE</strong>
+                    ${venta.cliente
+                        ? `${nombreCliente(venta)}<br>
+                           Doc: ${venta.cliente.numero_documento || '—'}<br>
+                           Tel: ${venta.cliente.telefono || '—'}`
+                        : 'Consumidor final'}
+                </div>
+                <div>
+                    <strong>MASCOTA</strong>
+                    ${venta.mascota
+                        ? `${venta.mascota.nombre}<br>
+                           ${venta.mascota.especie || ''} ${venta.mascota.raza || ''}`
+                        : '—'}
+                </div>
+                <div>
+                    <strong>PAGO</strong>
+                    Método: ${(venta.metodo_pago || '').toUpperCase()}<br>
+                    ${venta.referencia_pago ? `Ref: ${venta.referencia_pago}<br>` : ''}
+                    ${venta.cambio ? `Cambio: ${money(venta.cambio)}` : ''}
+                </div>
+            </div>
+
+            <table class="factura-tabla">
+                <thead>
+                    <tr>
+                        <th>Descripción</th>
+                        <th class="num">Cant.</th>
+                        <th class="num">Vr. Unit.</th>
+                        <th class="num">IVA</th>
+                        <th class="num">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>${items}</tbody>
+            </table>
+
+            <div class="factura-totales">
+                <table>
+                    <tr><td>Subtotal</td><td class="num">${money(venta.subtotal)}</td></tr>
+                    <tr><td>IVA</td><td class="num">${money(venta.iva)}</td></tr>
+                    ${Number(venta.descuento) ? `<tr><td>Descuento</td><td class="num">-${money(venta.descuento)}</td></tr>` : ''}
+                    <tr class="total"><td>TOTAL</td><td class="num">${money(venta.total)}</td></tr>
+                </table>
+            </div>
+
+            ${venta.observaciones ? `
+            <div style="margin-top:12px;font-size:11px;">
+                <strong>Observaciones:</strong> ${venta.observaciones}
+            </div>` : ''}
+
+            <div class="factura-footer">
+                Gracias por preferirnos · Documento generado por VetCloud POS<br>
+                ${venta.usuario ? `Atendido por: ${venta.usuario.name || venta.usuario.nombre || ''}` : ''}
+            </div>
+        `;
+    }
+
+    function aplicarFormato(formato) {
+        formatoActual = formato;
+        const cont = document.querySelector('#previewImpresion');
+        if (!cont || !ventaImpresion) return;
+
+        cont.classList.remove('formato-ticket', 'formato-carta');
+        cont.classList.add(formato === 'ticket' ? 'formato-ticket' : 'formato-carta');
+        cont.innerHTML = formato === 'ticket'
+            ? htmlTicket(ventaImpresion)
+            : htmlFactura(ventaImpresion);
+    }
+
+    document.addEventListener('change', (e) => {
+        if (e.target.name === 'formatoImpresion') aplicarFormato(e.target.value);
+    });
+
+    function imprimirFormatoActual() {
+        if (!ventaImpresion) return;
+
+        const html = formatoActual === 'ticket'
+            ? htmlTicket(ventaImpresion)
+            : htmlFactura(ventaImpresion);
+
+        const estilos = formatoActual === 'ticket'
+            ? `
+                @page { size: 80mm auto; margin: 0; }
+                body { margin: 0; }
+                .ticket-wrapper {
+                    width: 80mm;
+                    padding: 4mm 3mm;
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    color: #000;
+                }
+                .ticket-line { border-top: 1px dashed #000; margin: 4px 0; }
+                .ticket-center { text-align: center; }
+                .ticket-right  { text-align: right; }
+                .ticket-bold   { font-weight: 700; }
+                .ticket-small  { font-size: 10px; }
+                .ticket-total  {
+                    display: flex; justify-content: space-between;
+                    font-weight: 700; font-size: 13px; margin-top: 4px;
+                }
+            `
+            : `
+                @page { size: letter; margin: 12mm; }
+                body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
+                .factura-header {
+                    display: flex; justify-content: space-between;
+                    border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 14px;
+                }
+                .factura-header h2 { margin: 0; font-size: 22px; }
+                .factura-header p  { margin: 2px 0; font-size: 12px; }
+                .factura-info { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 12px; }
+                .factura-info div { flex: 1; }
+                .factura-info strong { display: block; margin-bottom: 4px; font-size: 11px; color:#555; }
+                .factura-tabla { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 12px; }
+                .factura-tabla th, .factura-tabla td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+                .factura-tabla th { background: #0E1B30; color: #fff; }
+                .factura-tabla .num { text-align: right; }
+                .factura-totales { display: flex; justify-content: flex-end; font-size: 13px; }
+                .factura-totales table { min-width: 240px; }
+                .factura-totales td { padding: 4px 8px; }
+                .factura-totales tr.total td { font-weight: 700; font-size: 15px; border-top: 2px solid #000; }
+                .factura-footer { margin-top: 20px; text-align: center; font-size: 11px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
+            `;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = formatoActual === 'ticket' ? 'ticket-wrapper' : 'factura-wrapper';
+        wrapper.innerHTML = html;
+
+        const ventana = window.open('', '_blank', 'width=800,height=700');
+        ventana.document.open();
+        ventana.document.write(`
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <title>${formatoActual === 'ticket' ? 'Ticket' : 'Factura'} - ${ventaImpresion.consecutivo || ventaImpresion.id}</title>
+                <style>${estilos}</style>
+            </head>
+            <body onload="window.print(); window.onafterprint = () => window.close();">
+                ${wrapper.outerHTML}
+            </body>
+            </html>
+        `);
+        ventana.document.close();
+    }
+
+    async function abrirVistaPrevia(ventaId) {
+        try {
+            const url = cfg.rutaVentaImprimir.replace('__ID__', ventaId);
+            const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.message || 'No se pudo cargar la venta.');
+
+            ventaImpresion = data.venta;
+            formatoActual = 'ticket';
+
+            const radioTicket = document.querySelector('input[name="formatoImpresion"][value="ticket"]');
+            if (radioTicket) radioTicket.checked = true;
+
+            aplicarFormato('ticket');
+            if (window.jQuery) window.jQuery('#modalVistaPrevia').modal('show');
+        } catch (err) {
+            alert('Error al cargar la venta: ' + err.message);
+        }
+    }
+
+    // ============================================================
     // 🔥 REGISTRAR VENTA
     // ============================================================
     function registrarVenta() {
         if (Object.keys(carrito).length === 0) return;
 
         if (metodoPago !== 'efectivo' && !datosPago) {
-            if (window.Swal) {
-                Swal.fire({ icon: 'warning', title: 'Datos de pago requeridos', text: 'Complete el formulario del método de pago antes de continuar.' });
-            } else {
-                alert('Complete el formulario del método de pago antes de continuar.');
-            }
+            Swal.fire({
+                icon: 'warning',
+                title: 'Datos de pago requeridos',
+                text: 'Complete el formulario del método de pago antes de continuar.',
+            });
             abrirModalPago(metodoPago);
             return;
         }
@@ -986,13 +1619,20 @@
             return;
         }
 
+        const { ivaPct } = calcularTotales();
+
         const payload = {
-            items: Object.values(carrito).map((i) => ({ producto_id: i.id, cantidad: i.cantidad })),
+            items: Object.values(carrito).map((i) => ({
+                producto_id: i.id,
+                cantidad: i.cantidad,
+                precio_unitario: i.precio,
+                iva_porcentaje: ivaPct,
+                subtotal: i.precio * i.cantidad,
+            })),
             cliente_id: clienteId || null,
-            mascota_id: mascotaId || null,
-            descuento_porcentaje: parseFloat($('#inputDescuento').value || 0) || 0,
+            descuento_porcentaje: parseFloat(document.querySelector('#inputDescuento').value || 0) || 0,
             metodo_pago: metodoPago,
-            observacion: $('#observacionVenta').value || null,
+            observacion: null,
             referencia_pago: datosPago?.referencia_pago || null,
             detalle_pago: datosPago?.detalle_pago || null,
             monto_efectivo: datosPago?.monto_efectivo ?? null,
@@ -1000,11 +1640,15 @@
             cambio: datosPago?.cambio ?? null,
         };
 
-        [$('#btnCobrar'), $('#btnGuardarVenta')].forEach((b) => b && (b.disabled = true));
+        document.querySelector('#btnCobrarConImpresion').disabled = true;
 
         fetch(cfg.rutaVentaStore, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': cfg.csrfToken, 'Accept': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': cfg.csrfToken,
+                'Accept': 'application/json',
+            },
             body: JSON.stringify(payload),
         })
             .then(async (res) => {
@@ -1013,13 +1657,129 @@
                 return data;
             })
             .then((data) => {
-                alert(`Venta ${data.venta.consecutivo} registrada correctamente.`);
-                window.location.reload();
+                abrirVistaPrevia(data.venta.id);
+
+                const formatoSel = document.querySelector('#tipoComprobante')?.value || 'ticket';
+                setTimeout(() => {
+                    if (formatoSel === 'carta' || formatoSel === 'ticket') {
+                        aplicarFormato(formatoSel);
+                        const radio = document.querySelector(`input[name="formatoImpresion"][value="${formatoSel}"]`);
+                        if (radio) radio.checked = true;
+                    }
+                }, 400);
+
+                if (window.jQuery) {
+                    window.jQuery('#modalVistaPrevia').one('hidden.bs.modal', () => {
+                        window.location.reload();
+                    });
+                } else {
+                    setTimeout(() => window.location.reload(), 1500);
+                }
             })
-            .catch((err) => { alert(err.message); renderCarrito(); });
+            .catch((err) => {
+                Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+                document.querySelector('#btnCobrarConImpresion').disabled = false;
+                renderCarrito();
+            });
     }
 
-    // ---------------- Init ----------------
+    // ============================================================
+    // 🔥 BOTONES NUEVOS
+    // ============================================================
+    function cancelarVenta() {
+        if (Object.keys(carrito).length === 0) {
+            Swal.fire({ icon: 'info', title: 'Nada que cancelar', text: 'El carrito está vacío.', timer: 1500, showConfirmButton: false });
+            return;
+        }
+
+        Swal.fire({
+            icon: 'warning',
+            title: '¿Cancelar venta?',
+            html: `<p style="color:#64748B;font-size:14px;margin:0;">Se perderán <strong>todos los productos</strong> del carrito actual.</p>`,
+            showCancelButton: true,
+            confirmButtonColor: '#DC3545',
+            cancelButtonColor: '#6C757D',
+            confirmButtonText: '<i class="fas fa-trash"></i> Sí, cancelar',
+            cancelButtonText: '<i class="fas fa-times"></i> Volver',
+            reverseButtons: true,
+            focusCancel: true,
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            carrito = {};
+            datosPago = null;
+            clienteId = null;
+            mascotaId = null;
+            renderCarrito();
+
+            const $cli = document.querySelector('#buscarCliente');
+            const $desc = document.querySelector('#inputDescuento');
+            const $cliId = document.querySelector('#clienteIdSeleccionado');
+            if ($cli) $cli.value = '';
+            if ($desc) $desc.value = 0;
+            if ($cliId) $cliId.value = '';
+
+            Swal.fire({ icon: 'success', title: 'Venta cancelada', timer: 1400, showConfirmButton: false });
+        });
+    }
+
+    function imprimirVentaActual() {
+        if (Object.keys(carrito).length === 0) {
+            Swal.fire({ icon: 'info', title: 'Carrito vacío', text: 'Agrega productos antes de imprimir.', timer: 1500, showConfirmButton: false });
+            return;
+        }
+
+        const { subtotal, iva, descuentoValor, total } = calcularTotales();
+        const items = Object.values(carrito).map((it) => ({
+            nombre: it.nombre,
+            cant:   it.cantidad,
+            precio: it.precio,
+            iva:    it.iva,
+            sub:    it.precio * it.cantidad,
+        }));
+
+        ventaImpresion = {
+            id: 'PREVENTA',
+            consecutivo: 'PREVENTA',
+            fecha: new Date().toISOString(),
+            subtotal, iva, descuento: descuentoValor, total,
+            metodo_pago: metodoPago,
+            estado: 'pendiente',
+            observaciones: '',
+            detalles: items,
+            cliente: clienteId ? { nombres: document.querySelector('#buscarCliente')?.value || '', apellidos: '' } : null,
+            mascota: null,
+        };
+
+        const formatoSel = document.querySelector('#tipoComprobante')?.value || 'ticket';
+        const formatoVista = formatoSel === 'carta' ? 'carta' : 'ticket';
+        aplicarFormato(formatoVista);
+
+        if (window.jQuery) window.jQuery('#modalVistaPrevia').modal('show');
+    }
+
+    function cobrarConImpresion() {
+        if (Object.keys(carrito).length === 0) {
+            Swal.fire({ icon: 'info', title: 'Carrito vacío', text: 'Agrega productos antes de cobrar.', timer: 1500, showConfirmButton: false });
+            return;
+        }
+
+        if (metodoPago !== 'efectivo' && !datosPago) {
+            Swal.fire({ icon: 'warning', title: 'Datos de pago requeridos', text: 'Complete el formulario del método de pago antes de continuar.' });
+            abrirModalPago(metodoPago);
+            return;
+        }
+        if (metodoPago === 'efectivo' && !datosPago) {
+            abrirModalPago('efectivo');
+            return;
+        }
+
+        registrarVenta();
+    }
+
+    // ============================================================
+    // 🔥 INIT
+    // ============================================================
     document.addEventListener('DOMContentLoaded', function () {
         $$('.vc-product-card').forEach((card) => card.addEventListener('click', (e) => { e.preventDefault(); agregarAlCarrito(card); }));
 
@@ -1037,7 +1797,6 @@
 
         $('#buscarProducto')?.addEventListener('input', filtrarCatalogo);
 
-        // 🔥 Abrir modal al hacer clic en método de pago
         $$('#metodosPago button').forEach((btn) => btn.addEventListener('click', () => {
             $$('#metodosPago button').forEach((b) => b.classList.remove('is-active'));
             btn.classList.add('is-active');
@@ -1047,51 +1806,35 @@
         }));
 
         $('#inputDescuento')?.addEventListener('input', renderCarrito);
-        $('#btnCobrar')?.addEventListener('click', registrarVenta);
-        $('#btnGuardarVenta')?.addEventListener('click', registrarVenta);
+        document.querySelector('#inputEfectivoRecibido')?.addEventListener('input', actualizarCambio);
+        document.querySelector('#selectIva')?.addEventListener('change', () => { renderCarrito(); });
+
+        document.querySelector('#btnCancelarVenta')?.addEventListener('click', cancelarVenta);
+        document.querySelector('#btnImprimirVenta')?.addEventListener('click', imprimirVentaActual);
+        document.querySelector('#btnCobrarConImpresion')?.addEventListener('click', cobrarConImpresion);
+
+        document.querySelector('#tipoComprobante')?.addEventListener('change', (e) => {
+            tipoComprobante = e.target.value;
+        });
 
         inicializarTypeahead('#buscarCliente', '#resultadosCliente', cfg.rutaBuscarClientes, '#clienteIdSeleccionado', (id) => { clienteId = id; });
-        inicializarTypeahead('#buscarMascota', '#resultadosMascota', cfg.rutaBuscarMascotas, '#mascotaIdSeleccionada', (id) => { mascotaId = id; });
 
-        // ============================================================
-        // 🔥 VACIAR CARRITO CON SWEETALERT2
-        // ============================================================
-        // Delegación: se engancha a document, funciona aunque el botón se re-renderice
-        
+        // Vaciar carrito (delegación)
         document.addEventListener('click', function (e) {
             const btn = e.target.closest('#btnVaciarCarrito');
             if (!btn) return;
-
             e.preventDefault();
-            console.log('🟢 clic en vaciar carrito');   // 👈 DEBUG
 
-            // Carrito vacío → avisar
             if (Object.keys(carrito).length === 0) {
-                Swal.fire({
-                    icon: 'info',
-                    title: 'Carrito vacío',
-                    text: 'No hay productos en el carrito.',
-                    confirmButtonColor: '#3B82F6',
-                    timer: 2000,
-                    timerProgressBar: true,
-                    showConfirmButton: false
-                });
+                Swal.fire({ icon: 'info', title: 'Carrito vacío', text: 'No hay productos en el carrito.', timer: 2000, showConfirmButton: false });
                 return;
             }
 
-            // Confirmación
             Swal.fire({
                 icon: 'warning',
                 title: '¿Vaciar carrito?',
-                html: `
-                    <p style="color:#64748B;font-size:14px;margin:0 0 8px;">
-                        Se eliminarán <strong>todos los productos</strong> del carrito actual.
-                    </p>
-                    <p style="color:#EF4444;font-size:13px;margin:0;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Esta acción no se puede deshacer
-                    </p>
-                `,
+                html: `<p style="color:#64748B;font-size:14px;margin:0 0 8px;">Se eliminarán <strong>todos los productos</strong> del carrito actual.</p>
+                       <p style="color:#EF4444;font-size:13px;margin:0;"><i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer</p>`,
                 showCancelButton: true,
                 confirmButtonColor: '#DC3545',
                 cancelButtonColor: '#6C757D',
@@ -1101,24 +1844,12 @@
                 focusCancel: true
             }).then((result) => {
                 if (!result.isConfirmed) return;
-
-                // 🔥 Vaciar el carrito REAL del IIFE
                 carrito = {};
                 datosPago = null;
                 renderCarrito();
-
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Carrito vaciado!',
-                    text: 'Todos los productos han sido eliminados.',
-                    confirmButtonColor: '#22C55E',
-                    timer: 1800,
-                    timerProgressBar: true,
-                    showConfirmButton: false
-                });
+                Swal.fire({ icon: 'success', title: '¡Carrito vaciado!', timer: 1800, showConfirmButton: false });
             });
         });
-
 
         $('#formAbrirCajaPos')?.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -1147,7 +1878,9 @@
         renderCarrito();
     });
 
-    
+    // Exponer globales necesarias
+    window.imprimirFormatoActual = imprimirFormatoActual;
+    window.abrirVistaPrevia = abrirVistaPrevia;
 })();
 </script>
 @endpush

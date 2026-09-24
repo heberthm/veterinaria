@@ -57,4 +57,12 @@ class Venta extends Model
     {
         return $this->hasMany(VentaDetalle::class);
     }
+
+    protected $appends = ['consecutivo'];
+
+    public function getConsecutivoAttribute()
+    {
+        return 'V-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+    }
+
 }

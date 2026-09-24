@@ -251,6 +251,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/ventas/buscar-clientes', [VentaController::class, 'buscarClientes'])->name('ventas.buscar-clientes');
     Route::get('/ventas/buscar-productos', [VentaController::class, 'buscarProductos'])->name('ventas.buscar-productos');
     Route::get('/ventas/buscar-mascotas', [VentaController::class, 'buscarMascotas'])->name('ventas.buscar-mascotas');
+    Route::get('/ventas/{venta}/imprimir', [VentaController::class, 'datosImpresion'])->name('ventas.imprimir');
+   
 
 
    /*

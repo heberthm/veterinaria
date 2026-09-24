@@ -321,10 +321,7 @@ function actualizarCarrito() {
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
-                <div class="vc-cart-item__subtotal">$${formatNumber(subtotal)}</div>
-                <button type="button" class="btn-eliminar-item" data-index="${index}">
-                    <i class="fas fa-times"></i>
-                </button>
+                <div class="vc-cart-item__subtotal">$${formatNumber(subtotal)}</div>            
             </div>
         `;
     });

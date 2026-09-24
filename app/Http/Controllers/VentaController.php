@@ -464,4 +464,20 @@ class VentaController extends Controller
 
         return $pdf->download($nombreArchivo);
     }
+
+  public function datosImpresion(Venta $venta)
+{
+    $venta->load(['detalles', 'cliente', 'mascota', 'usuario', 'tenant']);
+
+    return response()->json([
+        'success' => true,
+        'venta'   => $venta,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'venta'   => $venta,
+    ]);
+}
+
 }
