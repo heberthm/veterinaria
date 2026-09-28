@@ -144,7 +144,6 @@ class MascotaController extends Controller
             'peso'                  => $request->peso,
             'numero_chip'           => $request->numero_chip,
             'estado'                => $estado,
-            'activo'                => $estado === 'activo',        // 🔥 sincronizado
             'esterilizado'          => $request->boolean('esterilizado'),
             'alergias'              => $request->alergias,
             'enfermedades_cronicas' => $request->enfermedades_cronicas,
@@ -201,6 +200,14 @@ class MascotaController extends Controller
      */
     public function update(Request $request, $id)
     {
+         // 🔥 DEBUG TEMPORAL
+    \Log::info('=== UPDATE MASCOTA DEBUG ===', [
+        'id'         => $id,
+        'estado_raw' => $request->estado,
+        'estado_tipo'=> gettype($request->estado),
+        'todos'      => $request->except(['_method', '_token']),
+    ]);
+
         $tenantId = auth()->user()->tenant_id;
 
         $mascota = Mascota::whereHas('cliente', function ($q) use ($tenantId) {
@@ -252,7 +259,6 @@ class MascotaController extends Controller
             'peso'                  => $request->peso,
             'numero_chip'           => $request->numero_chip,
             'estado'                => $estado,
-            'activo'                => $estado === 'activo',        // 🔥 sincronizado
             'esterilizado'          => $request->boolean('esterilizado'),
             'alergias'              => $request->alergias,
             'enfermedades_cronicas' => $request->enfermedades_cronicas,
@@ -304,7 +310,7 @@ class MascotaController extends Controller
         $tenantId = auth()->user()->tenant_id;
 
         $mascotas = Mascota::where('cliente_id', $clienteId)
-            ->where('activo', true)
+            ->where('estado', 'activo')                    // 👈 cambiado de activo → estado
             ->whereHas('cliente', function ($q) use ($tenantId) {
                 $q->where('tenant_id', $tenantId);
             })

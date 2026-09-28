@@ -408,8 +408,7 @@ $(document).ready(function () {
         if (esEdicion) {
             formData.push({ name: '_method', value: 'PUT' });
         }
-        formData.push({ name: 'activo',       value: $form.find('[name="activo"]').is(':checked') ? 1 : 0 });
-        formData.push({ name: 'esterilizado', value: $form.find('[name="esterilizado"]').is(':checked') ? 1 : 0 });
+         formData.push({ name: 'esterilizado', value: $form.find('[name="esterilizado"]').is(':checked') ? 1 : 0 });
 
         $.ajax({
             url: url,
