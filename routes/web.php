@@ -105,6 +105,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/clientes/datatable', [ClienteController::class, 'datatable'])->name('clientes.datatable');
     Route::get('/clientes/{id}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::get('/clientes/{id}/edit', [ClienteController::class, 'edit'])->name('clientes.edit');
     Route::put('/clientes/{id}', [ClienteController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
     Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
@@ -118,9 +119,9 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::get('/mascotas', [MascotaController::class, 'index'])->name('mascotas');
     Route::get('/mascotas/datatable', [MascotaController::class, 'datatable'])->name('mascotas.datatable');
-    Route::get('/mascotas/{id}', [MascotaController::class, 'show'])->name('mascotas.show');
     Route::post('/mascotas', [MascotaController::class, 'store'])->name('mascotas.store');
     Route::put('/mascotas/{id}', [MascotaController::class, 'update'])->name('mascotas.update');
+    Route::get('/mascotas/{id}/edit',  [MascotaController::class, 'edit'])->name('mascotas.edit');  
     Route::delete('/mascotas/{id}', [MascotaController::class, 'destroy'])->name('mascotas.destroy');
     Route::get('/mascotas/{id}/detalle', [MascotaController::class, 'detalle'])->name('mascotas.detalle');
 

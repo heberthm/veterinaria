@@ -15,11 +15,12 @@ return new class extends Migration
             $table->string('numero_documento');
             $table->string('nombres');
             $table->string('apellidos')->nullable();
+             $table->date('fecha_nacimiento')->nullable();
             $table->string('email')->nullable();           
-            $table->string('celular')->nullable();
+            $table->string('celular')->nullable();          
             $table->string('direccion')->nullable();
+            $table->string('barrio')->nullable();
             $table->string('ciudad')->nullable();
-            $table->text('notas')->nullable();
             $table->boolean('activo')->default(true);
             $table->timestamps();
             $table->softDeletes();

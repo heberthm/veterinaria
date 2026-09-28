@@ -124,7 +124,7 @@
  <div class="vc-cart-panel">
     <div class="vc-cart-header">
         <span>Factura venta No. <span id="consecutivoVenta">{{ $siguienteConsecutivo }}</span></span>
-        <button type="button" id="btnVaciarCarrito"><i class="fas fa-trash"></i></button>
+        <button type="button" id="btnVaciarCarrito" title="Vaciar carrito de compra"><i class="fas fa-trash"></i></button>
     </div>
 
     <div class="vc-cart-body">
@@ -183,14 +183,22 @@
             <button type="button" data-metodo="mixto"><i class="fas fa-random"></i> Mixto</button>
         </div>
 
-        {{-- 🔥 Cliente (se queda) --}}
+        {{-- 🔥 Cliente  --}}
         <div class="vc-field vc-pos-typeahead">
             <label>Cliente (Opcional)</label>
-            <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente por nombre, documento o teléfono...">
+            <div style="display:flex; gap:6px;">
+                <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente por nombre, documento o teléfono..." style="flex:1;">
+                <button type="button" class="vc-btn vc-btn-primary" id="btnNuevoCliente" 
+                        style="background:#2F6FED;color:#fff;padding:8px 12px;" title="Crear cliente nuevo">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
             <input type="hidden" id="clienteIdSeleccionado">
             <div class="vc-pos-typeahead-results" id="resultadosCliente"></div>
         </div>
 
+
+        
         {{-- 🔥 Tipo de comprobante --}}
         <div class="vc-tipo-comprobante">
             <label class="vc-tipo-comprobante__label">Tipo de Comprobante</label>
@@ -501,6 +509,135 @@
         </div>
     </div>
 </div>
+
+{{-- ============================================================ --}}
+{{-- 🔥 MODAL: NUEVO CLIENTE RÁPIDO (POS)                        --}}
+{{-- ============================================================ --}}
+<div class="modal fade" id="modalNuevoCliente" tabindex="-1" role="dialog" data-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content" style="border-radius:16px;border:none;">
+            <div class="modal-header bg-default">
+                <h5 class="modal-title" style="font-weight:700;font-size:15px;">
+                    <i class="fas fa-user-plus" style="color:green;"></i> Nuevo Cliente
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formNuevoCliente">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="vc-field">
+                                <label>Tipo Documento <span class="text-danger">*</span></label>
+                                <select name="tipo_documento" class="form-control" required>
+                                    <option value="CC">CC - Cédula</option>
+                                    <option value="CE">CE - Cédula Extranjería</option>
+                                    <option value="NIT">NIT</option>
+                                    <option value="PA">PA - Pasaporte</option>
+                                    <option value="RC">RC - Registro Civil</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="vc-field">
+                                <label>Número Documento <span class="text-danger">*</span></label>
+                                <input type="text" name="numero_documento" class="form-control" required maxlength="20">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="vc-field">
+                                <label>Celular</label>
+                                <input type="text" name="celular" class="form-control" maxlength="20">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Nombres <span class="text-danger">*</span></label>
+                                <input type="text" name="nombres" class="form-control" required maxlength="100">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Apellidos <span class="text-danger">*</span></label>
+                                <input type="text" name="apellidos" class="form-control" required maxlength="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Email</label>
+                                <input type="email" name="email" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Ciudad</label>
+                                <input type="text" name="ciudad" class="form-control" maxlength="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="vc-field">
+                                <label>Dirección</label>
+                                <input type="text" name="direccion" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="vc-field">
+                                <label>Barrio</label>
+                                <input type="text" name="barrio" class="form-control" maxlength="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Fecha Nacimiento</label>
+                                <input type="date" name="fecha_nacimiento" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="vc-field">
+                                <label>Género</label>
+                                <select name="genero" class="form-control">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="masculino">Masculino</option>
+                                    <option value="femenino">Femenino</option>
+                                    <option value="otro">Otro</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="vc-field">
+                        <label>
+                            <input type="checkbox" name="activo" value="1" checked> Cliente activo
+                        </label>
+                    </div>
+
+                    <div id="erroresNuevoCliente" class="text-danger small mt-2"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="vc-btn vc-btn-light" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="vc-btn vc-btn-primary" onclick="guardarNuevoCliente()"
+                        style="background:#2F6FED;color:#fff;">
+                    <i class="fas fa-save"></i> Guardar Cliente
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 
 
 @endsection
@@ -1210,6 +1347,12 @@
 
         document.addEventListener('click', (e) => {
             if (!input?.contains(e.target) && !results?.contains(e.target)) results.style.display = 'none';
+        });
+        // Abrir modal nuevo cliente
+        document.querySelector('#btnNuevoCliente')?.addEventListener('click', () => {
+            document.querySelector('#erroresNuevoCliente').innerHTML = '';
+            document.querySelector('#formNuevoCliente').reset();
+            if (window.jQuery) window.jQuery('#modalNuevoCliente').modal('show');
         });
     }
 
@@ -1981,6 +2124,65 @@ function htmlTicket(venta) {
         filtrarCatalogo();
         renderCarrito();
     });
+
+    // ============================================================
+// 🔥 NUEVO CLIENTE DESDE POS
+// ============================================================
+window.guardarNuevoCliente = function () {
+    const form = document.querySelector('#formNuevoCliente');
+    const errores = document.querySelector('#erroresNuevoCliente');
+    errores.innerHTML = '';
+
+    const formData = new FormData(form);
+    // Convertir checkbox a booleano
+    const payload = Object.fromEntries(formData.entries());
+    payload.activo = form.querySelector('[name="activo"]').checked ? 1 : 0;
+
+    fetch("{{ route('clientes.store') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': cfg.csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    })
+    .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            // Mostrar errores de validación
+            if (data.errors) {
+                errores.innerHTML = Object.values(data.errors).flat().join('<br>');
+            } else {
+                errores.innerHTML = data.message || 'Error al guardar el cliente.';
+            }
+            throw new Error('validación');
+        }
+        return data;
+    })
+    .then((data) => {
+        // Cerrar modal
+        if (window.jQuery) window.jQuery('#modalNuevoCliente').modal('hide');
+        
+        // Autoseleccionar el cliente recién creado
+        const c = data.cliente;
+        document.querySelector('#buscarCliente').value = `${c.nombres} ${c.apellidos} - ${c.numero_documento}`;
+        document.querySelector('#clienteIdSeleccionado').value = c.id;
+        clienteId = c.id;
+
+        // Limpiar formulario
+        form.reset();
+        errores.innerHTML = '';
+
+        if (window.toastr) toastr.success('Cliente creado exitosamente');
+        else Swal.fire({ icon: 'success', title: 'Cliente creado', timer: 1500, showConfirmButton: false });
+    })
+    .catch((err) => {
+        if (err.message !== 'validación') {
+            errores.innerHTML = 'Error de conexión. Intenta nuevamente.';
+        }
+    });
+};
 
     // Exponer globales necesarias
     window.imprimirFormatoActual = imprimirFormatoActual;

@@ -14,14 +14,14 @@ class Mascota extends Model
     protected $fillable = [
         'cliente_id',
         'nombre',
-        'especie',
+        'especie',        
         'raza',
         'color',
         'fecha_nacimiento',
         'genero',
         'peso',
         'numero_chip',
-        'foto',        // 🔥 AGREGADO
+        'foto',        
         'activo',
         'esterilizado',
         'alergias',
@@ -29,12 +29,26 @@ class Mascota extends Model
         'notas',
     ];
 
+    protected static function booted()
+    {
+        static::saving(function ($mascota) {
+            // Si hay cliente_id pero no tenant_id, heredarlo del cliente
+            if ($mascota->cliente_id && !$mascota->tenant_id) {
+                $cliente = Cliente::find($mascota->cliente_id);
+                if ($cliente) {
+                    $mascota->tenant_id = $cliente->tenant_id;
+                }
+            }
+        });
+    }
+
     protected $casts = [
-        'fecha_nacimiento' => 'date',
+         'fecha_nacimiento' => 'date:Y-m-d',   
         'peso' => 'float',
         'activo' => 'boolean',
         'esterilizado' => 'boolean',
     ];
+
 
     /**
      * Relación con el cliente
@@ -63,14 +77,30 @@ class Mascota extends Model
     /**
      * Obtener edad de la mascota
      */
-    public function getEdadAttribute()
-    {
-        if (!$this->fecha_nacimiento) {
-            return 'No registrada';
-        }
-        return $this->fecha_nacimiento->age . ' años';
-    }
+   public function getEdadAttribute()
+{
+    if (!$this->fecha_nacimiento) return '—';
 
+    $hoy = now();
+    $nac = \Carbon\Carbon::parse($this->fecha_nacimiento);
+
+    if ($nac->isFuture()) return '—';
+
+    $diff = $nac->diff($hoy);
+
+    if ($diff->y === 0 && $diff->m === 0) {
+        return $diff->d . ' día' . ($diff->d !== 1 ? 's' : '');
+    }
+    if ($diff->y === 0) {
+        return $diff->m . ' mes' . ($diff->m !== 1 ? 'es' : '')
+            . ($diff->d > 0 ? ' y ' . $diff->d . ' día' . ($diff->d !== 1 ? 's' : '') : '');
+    }
+    if ($diff->m === 0) {
+        return $diff->y . ' año' . ($diff->y !== 1 ? 's' : '');
+    }
+    return $diff->y . ' año' . ($diff->y !== 1 ? 's' : '')
+        . ' y ' . $diff->m . ' mes' . ($diff->m !== 1 ? 'es' : '');
+}
     /**
      * Obtener URL de la foto
      */

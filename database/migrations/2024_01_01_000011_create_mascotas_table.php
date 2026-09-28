@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('cliente_id')->constrained('clientes')->cascadeOnDelete();
             $table->string('nombre');
-            $table->string('especie');       // Canino, Felino, Otro
+            $table->string('especie');       
             $table->string('raza')->nullable();
             $table->enum('sexo', ['Macho', 'Hembra'])->nullable();
             $table->date('fecha_nacimiento')->nullable();
@@ -21,8 +21,11 @@ return new class extends Migration
             $table->string('color')->nullable();
             $table->string('microchip')->nullable();
             $table->text('alergias')->nullable();
+            $table->text('enfermedades_cronicas')->nullable();
+            $table->string('esterilizado')->nullable();          
+            $table->enum('estado', ['activo', 'inactivo', 'fallecido'])->default('activo');
             $table->string('foto')->nullable();
-            $table->enum('estado', ['Activo', 'Fallecido', 'Inactivo'])->default('Activo');
+            $table->string('notas')->nullable();
             $table->timestamps();
             $table->softDeletes();
 

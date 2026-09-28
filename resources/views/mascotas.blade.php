@@ -34,9 +34,9 @@
                         </button>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body">               
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="tabla-mascotas">
+                        <table id="tabla-mascotas" class="table table-hover table-striped" style="width:100%; font-size:12.5px;">
                             <thead>
                                 <tr>
                                     <th>ID</th>
@@ -50,7 +50,8 @@
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
-                        </table>
+                        </table>´
+                      </div>   
                     </div>
                 </div>
             </div>
@@ -136,52 +137,78 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Género <span class="text-danger">*</span></label>
-                                <select name="genero" class="form-control" required>
-                                    <option value="">Seleccionar...</option>
-                                    <option value="macho">♂️ Macho</option>
-                                    <option value="hembra">♀️ Hembra</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Fecha de Nacimiento</label>
-                                <input type="date" name="fecha_nacimiento" class="form-control">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-group">
-                                <label>Peso (kg)</label>
-                                <input type="number" name="peso" class="form-control" step="0.01" min="0" max="200" placeholder="Ej: 5.5">
-                            </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Género <span class="text-danger">*</span></label>
+                            <select name="genero" class="form-control" required>
+                                <option value="">Seleccionar...</option>
+                                <option value="macho">♂️ Macho</option>
+                                <option value="hembra">♀️ Hembra</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Número de Chip</label>
-                                <input type="text" name="numero_chip" class="form-control" placeholder="978101082776321">
-                            </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Fecha de Nacimiento</label>
+                            <input type="date" name="fecha_nacimiento" id="fecha_nacimiento_mascota"
+                                class="form-control" max="{{ date('Y-m-d') }}">
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label>Estado</label>
-                                <div class="custom-control custom-switch mt-2">
-                                    <input type="checkbox" name="activo" class="custom-control-input" id="activo-switch" checked>
-                                    <label class="custom-control-label" for="activo-switch">Activo</label>
-                                </div>
-                                <div class="custom-control custom-switch mt-2">
-                                    <input type="checkbox" name="esterilizado" class="custom-control-input" id="esterilizado-switch">
-                                    <label class="custom-control-label" for="esterilizado-switch">Esterilizado</label>
-                                </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Edad</label>
+                           <input type="text" id="edad_display"
+                                class="form-control" readonly
+                                style="background:#f8f9fa;font-weight:600;color:#28a745;"
+                                placeholder="—">
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Peso (kg)</label>
+                            <input type="number" name="peso" class="form-control"
+                                step="0.01" min="0" max="200" placeholder="Ej: 5.5">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Número de Chip</label>
+                            <input type="text" name="numero_chip" class="form-control"
+                                placeholder="978101082776321">
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Estado <span class="text-danger">*</span></label>
+                            <select name="estado" class="form-control" required>
+                                <option value="activo">🟢 Activo</option>
+                                <option value="inactivo">⚪ Inactivo</option>
+                                <option value="fallecido">⚫ Fallecido</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Esterilizado</label>
+                            <div class="custom-control custom-switch mt-2">
+                                <input type="checkbox" name="esterilizado" class="custom-control-input"
+                                    id="esterilizado-switch">
+                                <label class="custom-control-label" for="esterilizado-switch">
+                                   No / Si
+                                </label>
                             </div>
                         </div>
                     </div>
+                </div>
 
                     <div class="row">
                         <div class="col-md-6">
@@ -220,43 +247,103 @@
 {{-- ============================================================ --}}
 {{-- MODAL DETALLE DE MASCOTA --}}
 {{-- ============================================================ --}}
-<div class="modal fade" id="modal-detalle-mascota" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">
-                    <i class="fas fa-paw mr-2"></i> Detalle de Mascota
+<div class="modal fade" id="modalDetalleMascota" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius:14px;border:none;">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title" style="font-weight:700;font-size:15px;">
+                    <i class="fas fa-paw"></i> Detalle de la Mascota
                 </h5>
                 <button type="button" class="close text-white" data-dismiss="modal">
-                    <span>&times;</span>
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="modal-detalle-mascota-body">
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p class="mt-2">Cargando detalles...</p>
-                </div>
+            <div class="modal-body" id="detalleMascotaBody">
+                {{-- vacío, el JS lo llena --}}
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-warning" onclick="editarMascota()">
-                    <i class="fas fa-edit"></i> Editar
-                </button>
-                <button type="button" class="btn btn-danger" onclick="eliminarMascota()">
-                    <i class="fas fa-trash"></i> Eliminar
-                </button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
             </div>
         </div>
     </div>
 </div>
 
+
 @stop
 
-@section('js')
+@push('css')
+<style>
+ .btn-accion {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:24px; height:24px; border-radius:5px; border:none;
+    color:#fff; font-size:10px; cursor:pointer; margin:0 1px;
+    padding:0; line-height:1;
+    transition: transform .1s, filter .15s;
+    }
+    .btn-accion:hover  { filter: brightness(1.1); }
+    .btn-accion:active { transform: scale(.95); }
+    .btn-accion i      { font-size:10px; }
+
+    .btn-accion-ver      { background:#007bff; }
+    .btn-accion-editar   { background:#ffc107; color:#212529; }
+    .btn-accion-eliminar { background:#dc3545; }
+
+    /* 🔥 Contenedor de acciones */
+    .col-acciones {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;                   /* 👈 separación adicional entre botones */
+        white-space: nowrap;
+    }
+
+    /* Evita que se partan en varias líneas */
+    #tabla-mascotas td:last-child {
+        white-space: nowrap;
+        text-align: center;
+        width: 110px;
+    }
+
+    .cd-avatar {
+    width:56px; height:56px; border-radius:50%;
+    background:#28a745;              /* 👈 verde */
+    color:#ffffff;                   /* 👈 letra blanca */
+    font-weight:700; font-size:22px;
+    display:flex; align-items:center; justify-content:center;
+    text-transform:uppercase;
+    }
+
+    .cd-item {
+    display:flex; align-items:center; gap:10px;
+    background:#f8f9fa; padding:10px 14px; border-radius:8px;
+    font-size:13px; color:#495057; margin-bottom:6px;
+    }
+    .cd-item i { color:#007bff; width:16px; }
+
+    .cd-pet {
+        display:flex; align-items:center; gap:10px;
+        background:#ede7f6; padding:10px 14px; border-radius:8px;
+        font-size:13px; color:#5e35b1; margin-bottom:6px;
+    }
+
+    .cd-avatar {
+        width:56px; height:56px; border-radius:50%;
+        background:#28a745;
+        color:#fff; font-weight:700; font-size:22px;
+        display:flex; align-items:center; justify-content:center;
+        text-transform:uppercase;
+    }
+
+    .badge-activo   { background:#28a745; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
+    .badge-inactivo { background:#dc3545; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
+
+</style>
+@endpush
+@push('js')
 <script>
-$(document).ready(function() {
+$(document).ready(function () {
     // ============================================================
-    // SELECT2 - Inicialización
+    // SELECT2
     // ============================================================
     if ($.fn.select2) {
         $('.select2').select2({
@@ -266,11 +353,12 @@ $(document).ready(function() {
             allowClear: true
         });
     }
-    
+
     // ============================================================
     // DATATABLE
     // ============================================================
     window.tablaMascotas = $('#tabla-mascotas').DataTable({
+        retrieve: true,
         processing: true,
         serverSide: true,
         ajax: "{{ route('mascotas.datatable') }}",
@@ -287,179 +375,330 @@ $(document).ready(function() {
         ],
         order: [[0, 'desc']],
         language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+            processing:     'Procesando...',
+            search:         'Buscar:',
+            lengthMenu:     'Mostrar _MENU_ registros',
+            info:           'Mostrando _START_ a _END_ de _TOTAL_ registros',
+            infoEmpty:      'Mostrando 0 a 0 de 0 registros',
+            infoFiltered:   '(filtrado de _MAX_ registros totales)',
+            loadingRecords: 'Cargando...',
+            zeroRecords:    'No se encontraron resultados',
+            emptyTable:     'No hay datos disponibles',
+            paginate: {
+                first:    'Primero',
+                previous: 'Anterior',
+                next:     'Siguiente',
+                last:     'Último'
+            }
         }
     });
-    
+
     // ============================================================
-    // GUARDAR MASCOTA (DESDE EL MODAL)
+    // GUARDAR MASCOTA (crear o editar)
     // ============================================================
-    $('#btn-guardar-mascota').on('click', function() {
-        var form = $('#form-mascota');
-        var formData = form.serialize();
-        
+    $('#btn-guardar-mascota').on('click', function () {
+        const $form = $('#form-mascota');
+        const modo  = $form.data('modo') || 'crear';
+        const id    = $form.data('id');
+        const esEdicion = modo === 'editar' && id;
+
+        const url = esEdicion ? `/mascotas/${id}` : $form.attr('action');
+
+        let formData = $form.serializeArray();
+        if (esEdicion) {
+            formData.push({ name: '_method', value: 'PUT' });
+        }
+        formData.push({ name: 'activo',       value: $form.find('[name="activo"]').is(':checked') ? 1 : 0 });
+        formData.push({ name: 'esterilizado', value: $form.find('[name="esterilizado"]').is(':checked') ? 1 : 0 });
+
         $.ajax({
-            url: form.attr('action'),
-            method: form.attr('method'),
-            data: formData,
+            url: url,
+            method: 'POST',
+            data: $.param(formData),
             headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept':       'application/json'
             },
-            beforeSend: function() {
+            beforeSend: function () {
                 $('#btn-guardar-mascota').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
             },
-            success: function(response) {
+            success: function (response) {
                 if (response.success) {
                     $('#modal-mascota').modal('hide');
                     Swal.fire({
                         icon: 'success',
-                        title: 'Éxito',
-                        text: response.message || 'Mascota guardada correctamente',
-                        confirmButtonColor: '#28a745'
+                        title: esEdicion ? 'Mascota actualizada' : 'Mascota creada',
+                        timer: 1500,
+                        showConfirmButton: false
                     });
-                    window.tablaMascotas.ajax.reload();
-                    
-                    // Limpiar el formulario
-                    $('#form-mascota')[0].reset();
-                    $('.select2').val('').trigger('change');
-                    
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: response.message || 'Error al guardar',
-                        confirmButtonColor: '#d33'
-                    });
+                    window.tablaMascotas.ajax.reload(null, false);
                 }
             },
-            error: function(xhr) {
-                var errors = xhr.responseJSON?.errors;
-                if (errors) {
-                    var mensaje = '';
-                    $.each(errors, function(key, value) {
-                        mensaje += value[0] + '\n';
-                    });
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error de validación',
-                        text: mensaje,
-                        confirmButtonColor: '#d33'
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Error al guardar la mascota',
-                        confirmButtonColor: '#d33'
-                    });
-                }
+            error: function (xhr) {
+                const errors = xhr.responseJSON?.errors;
+                let mensaje = 'Error al guardar la mascota';
+                if (errors) mensaje = Object.values(errors).flat().join('<br>');
+                else if (xhr.responseJSON?.message) mensaje = xhr.responseJSON.message;
+                Swal.fire({ icon: 'error', title: 'Error', html: mensaje, confirmButtonColor: '#d33' });
             },
-            complete: function() {
+            complete: function () {
                 $('#btn-guardar-mascota').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
             }
         });
     });
-    
+
     // ============================================================
-    // LIMPIAR FORMULARIO AL CERRAR EL MODAL
+    // LIMPIAR MODAL AL CERRAR
     // ============================================================
-    $('#modal-mascota').on('hidden.bs.modal', function() {
-        $('#form-mascota')[0].reset();
-        $('.select2').val('').trigger('change');
+    $('#modal-mascota').on('hidden.bs.modal', function () {
+        const $form = $('#form-mascota');
+        $form[0].reset();
+        $form.find('select').val('').trigger('change');
+        $form.removeData('modo').removeData('id');
+        $('#modal-mascota .modal-title').html('<i class="fas fa-paw text-primary"></i> Nueva Mascota');
         $('#btn-guardar-mascota').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
+        $form.find('[name="activo"]').prop('checked', true);
+        $form.find('[name="esterilizado"]').prop('checked', false);
+        $('#edad_display').val(''); 
     });
 });
 
+
 // ============================================================
-// FUNCIONES PARA MASCOTAS
+// 🔥 FUNCIONES GLOBALES (FUERA del $(document).ready)
 // ============================================================
 
 function verMascota(id) {
-    $('#modal-detalle-mascota-body').html(`
-        <div class="text-center text-muted py-4">
-            <i class="fas fa-spinner fa-spin fa-2x"></i>
-            <p class="mt-2">Cargando detalles...</p>
-        </div>
-    `);
-    
-    $.ajax({
-        url: '/mascotas/' + id + '/detalle',
-        method: 'GET',
-        success: function(data) {
-            $('#modal-detalle-mascota-body').html(data);
-            $('#modal-detalle-mascota').data('mascota-id', id);
-        },
-        error: function() {
-            $('#modal-detalle-mascota-body').html(`
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle"></i> Error al cargar los detalles.
+    const cont = document.getElementById('detalleMascotaBody');
+    if (!cont) return;
+
+    fetch(`/mascotas/${id}/detalle`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error('No se pudo cargar la mascota.');
+        return res.json();
+    })
+    .then((data) => {
+        const m = data.mascota || data;
+
+        const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        }[c]));
+
+        const val   = (v) => (v !== null && v !== undefined && v !== '') ? esc(v) : '—';
+        const fecha = (f) => f ? new Date(f).toLocaleDateString('es-CO') : '—';
+        const inicial = (m.nombre || '?').charAt(0).toUpperCase();
+        const dueno = m.cliente || m.propietario || m.dueno || null;
+
+        cont.innerHTML = `
+            <div class="d-flex align-items-center mb-4">
+                <div class="cd-avatar mr-3">${esc(inicial)}</div>
+                <div>
+                    <h5 class="mb-0 font-weight-bold">${val(m.nombre)}</h5>
+                    <span class="text-muted small">${val(m.especie)} · ${val(m.raza)}</span>
+                    ${m.activo !== undefined ? `
+                        <span class="ml-2 ${m.activo ? 'badge-activo' : 'badge-inactivo'}">
+                            ${m.activo ? 'Activo' : 'Inactivo'}
+                        </span>` : ''}
                 </div>
-            `);
-        }
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold"><i class="fas fa-paw"></i> Información</h6>
+                    ${m.genero           ? `<div class="cd-item"><i class="fas fa-venus-mars"></i> <strong>Género:</strong> ${val(m.genero)}</div>` : ''}
+                    ${m.fecha_nacimiento ? `<div class="cd-item"><i class="fas fa-birthday-cake"></i> <strong>Nacimiento:</strong> ${fecha(m.fecha_nacimiento)}</div>` : ''}
+                    ${m.peso             ? `<div class="cd-item"><i class="fas fa-weight"></i> <strong>Peso:</strong> ${esc(m.peso)} kg</div>` : ''}
+                    ${m.color            ? `<div class="cd-item"><i class="fas fa-palette"></i> <strong>Color:</strong> ${val(m.color)}</div>` : ''}
+                    ${m.numero_chip      ? `<div class="cd-item"><i class="fas fa-tag"></i> <strong>Chip:</strong> ${val(m.numero_chip)}</div>` : ''}
+                    ${m.esterilizado !== undefined ? `<div class="cd-item"><i class="fas fa-dog"></i> <strong>Esterilizado:</strong> ${m.esterilizado ? 'Sí' : 'No'}</div>` : ''}
+                </div>
+
+                <div class="col-md-6">
+                    <h6 class="font-weight-bold"><i class="fas fa-user"></i> Dueño</h6>
+                    ${dueno ? `
+                        <div class="cd-item"><i class="fas fa-user"></i> <strong>${esc(dueno.nombres || '')} ${esc(dueno.apellidos || '')}</strong></div>
+                        ${dueno.celular ? `<div class="cd-item"><i class="fas fa-phone"></i> <strong>Celular:</strong> ${esc(dueno.celular)}</div>` : ''}
+                        ${dueno.email   ? `<div class="cd-item"><i class="fas fa-envelope"></i> <strong>Email:</strong> ${esc(dueno.email)}</div>` : ''}
+                    ` : '<div class="cd-item text-muted">Sin dueño asignado</div>'}
+                </div>
+            </div>
+
+            ${(m.notas || m.alergias || m.enfermedades_cronicas) ? `
+                <div class="mt-3">
+                    <h6 class="font-weight-bold"><i class="fas fa-sticky-note"></i> Notas</h6>
+                    ${m.notas ? `<div class="cd-item"><i class="fas fa-comment"></i> ${esc(m.notas)}</div>` : ''}
+                    ${m.alergias ? `<div class="cd-item"><i class="fas fa-exclamation-triangle"></i> <strong>Alergias:</strong> ${esc(m.alergias)}</div>` : ''}
+                    ${m.enfermedades_cronicas ? `<div class="cd-item"><i class="fas fa-heartbeat"></i> <strong>Crónicas:</strong> ${esc(m.enfermedades_cronicas)}</div>` : ''}
+                </div>
+            ` : ''}
+        `;
+
+        jQuery('#modalDetalleMascota').modal('show');
+    })
+    .catch((err) => {
+        cont.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
+        jQuery('#modalDetalleMascota').modal('show');
     });
-    
-    $('#modal-detalle-mascota').modal('show');
 }
 
-function editarMascota() {
-    var id = $('#modal-detalle-mascota').data('mascota-id');
-    if (id) {
-        $('#modal-detalle-mascota').modal('hide');
-        window.location.href = '/mascotas/' + id + '/editar';
-    }
-}
 
-function eliminarMascota() {
-    var id = $('#modal-detalle-mascota').data('mascota-id');
-    if (id) {
-        $('#modal-detalle-mascota').modal('hide');
+function editarMascota(id) {
+    fetch(`/mascotas/${id}/edit`, {
+        headers: { 'Accept': 'application/json' }
+    })
+    .then((res) => {
+        if (!res.ok) throw new Error('No se pudo cargar la mascota.');
+        return res.json();
+    })
+    .then((data) => {
+        const m = data.mascota || data;
+        console.log('Datos de la mascota:', m);   // 👈 temporal para debug
+
+        $('#modal-mascota .modal-title').html('<i class="fas fa-paw text-primary"></i> Editar Mascota');
+
+        $('#form-mascota [name="cliente_id"]').val(m.cliente_id).trigger('change');
+        $('#form-mascota [name="nombre"]').val(m.nombre || '');
+        $('#form-mascota [name="especie"]').val(m.especie || '');
+        $('#form-mascota [name="raza"]').val(m.raza || '');
+        $('#form-mascota [name="color"]').val(m.color || '');
+        $('#form-mascota [name="genero"]').val(m.genero || '');
+
+        // 🔥 FECHA DE NACIMIENTO
+        const fechaNac = m.fecha_nacimiento
+            ? String(m.fecha_nacimiento).substring(0, 10)   // "2021-04-14"
+            : '';
+        $('#form-mascota [name="fecha_nacimiento"]').val(fechaNac).trigger('change');
+
+        // 🔥 ESTADO
+        $('#form-mascota [name="estado"]').val(m.estado || 'activo');
+
+        $('#form-mascota [name="peso"]').val(m.peso || '');
+        $('#form-mascota [name="numero_chip"]').val(m.numero_chip || '');
+        $('#form-mascota [name="esterilizado"]').prop('checked', !!m.esterilizado);
+        $('#form-mascota [name="alergias"]').val(m.alergias || '');
+        $('#form-mascota [name="enfermedades_cronicas"]').val(m.enfermedades_cronicas || '');
+        $('#form-mascota [name="notas"]').val(m.notas || '');
+
+        const $form = $('#form-mascota');
+        $form.data('modo', 'editar');
+        $form.data('id', m.id);
+
+        $('#modal-mascota').modal('show');
+    })
+    .catch((err) => {
         Swal.fire({
-            title: '¿Estás seguro?',
-            text: '¿Eliminar esta mascota y todos sus registros?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/mascotas/' + id,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Eliminado',
-                                text: response.message || 'Mascota eliminada correctamente',
-                                confirmButtonColor: '#28a745'
-                            });
-                            window.tablaMascotas.ajax.reload();
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Error',
-                                text: response.message || 'Error al eliminar',
-                                confirmButtonColor: '#d33'
-                            });
-                        }
-                    },
-                    error: function(xhr) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: xhr.responseJSON?.message || 'Error al eliminar la mascota',
-                            confirmButtonColor: '#d33'
-                        });
-                    }
-                });
-            }
+            icon: 'error',
+            title: 'Error',
+            text: err.message,
+            confirmButtonColor: '#d33'
         });
-    }
+    });
 }
+
+
+function eliminarMascota(id) {
+    Swal.fire({
+        title: '¿Eliminar esta mascota?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        reverseButtons: true
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        fetch(`/mascotas/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                'Accept':       'application/json'
+            }
+        })
+        .then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Error al eliminar.');
+            }
+            return data;
+        })
+        .then((data) => {
+            if (window.tablaMascotas) window.tablaMascotas.ajax.reload(null, false);
+            Swal.fire({
+                icon: 'success',
+                title: 'Mascota eliminada',
+                text: data.message || '',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        })
+        .catch((err) => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: err.message,
+                confirmButtonColor: '#d33'
+            });
+        });
+    });
+}
+
+// ============================================================
+// 🔥 CÁLCULO AUTOMÁTICO DE EDAD
+// ============================================================
+function calcularEdad(fechaStr) {
+    if (!fechaStr) return '—';
+
+    const hoy = new Date();
+    const nacimiento = new Date(fechaStr);
+
+    if (isNaN(nacimiento.getTime())) return '—';
+    if (nacimiento > hoy) return 'Fecha inválida';
+
+    let años = hoy.getFullYear() - nacimiento.getFullYear();
+    let meses = hoy.getMonth() - nacimiento.getMonth();
+    let dias  = hoy.getDate() - nacimiento.getDate();
+
+    // Ajustar si aún no ha cumplido años/meses este año
+    if (dias < 0) {
+        meses--;
+        const ultimoMes = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
+        dias += ultimoMes;
+    }
+    if (meses < 0) {
+        años--;
+        meses += 12;
+    }
+
+    // Formato de salida
+    if (años === 0 && meses === 0) {
+        return `${dias} día${dias !== 1 ? 's' : ''}`;
+    }
+    if (años === 0) {
+        return `${meses} mes${meses !== 1 ? 'es' : ''}${dias > 0 ? ` y ${dias} día${dias !== 1 ? 's' : ''}` : ''}`;
+    }
+    if (meses === 0) {
+        return `${años} año${años !== 1 ? 's' : ''}`;
+    }
+    return `${años} año${años !== 1 ? 's' : ''} y ${meses} mes${meses !== 1 ? 'es' : ''}`;
+}
+
+// Escuchar cambios en la fecha de nacimiento
+$('#fecha_nacimiento_mascota').on('input change', function () {
+    const fecha = $(this).val();
+    $('#edad_display').val(calcularEdad(fecha));
+});
+
+
+// ============================================================
+// 🔥 FORZAR SCOPE GLOBAL
+// ============================================================
+window.verMascota      = verMascota;
+window.editarMascota   = editarMascota;
+window.eliminarMascota = eliminarMascota;
 </script>
-@stop
+@endpush

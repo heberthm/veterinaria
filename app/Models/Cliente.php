@@ -25,9 +25,8 @@ class Cliente extends Model
         'barrio',
         'fecha_nacimiento',
         'genero',
-        'activo',
-        'notas',
-        'foto',
+        'activo',    
+       
     ];
 
     protected $casts = [
