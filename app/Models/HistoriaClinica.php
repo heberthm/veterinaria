@@ -40,6 +40,14 @@ class HistoriaClinica extends Model
         'tratamiento'            => 'array',
     ];
 
+      // Alias para que la vista use los nombres cortos
+    public function getFechaAttribute()             { return $this->fecha_consulta; }
+    public function getMotivoAttribute()            { return $this->motivo_consulta; }
+    public function getProximaCitaAttribute()       { return $this->proxima_cita_sugerida; }
+    public function getCondicionCorporalAttribute() { return $this->estado_corporal; }
+    public function getFormulaAttribute()           { return $this->formulaMedica; }
+
+    
     public function mascota()
     {
         return $this->belongsTo(Mascota::class);
@@ -64,4 +72,6 @@ class HistoriaClinica extends Model
     {
         return $this->hasMany(HistoriaClinicaArchivo::class);
     }
+
+
 }

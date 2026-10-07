@@ -6,7 +6,9 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HistoriaClinicaController;
+use App\Http\Controllers\ExamenController;
 use App\Http\Controllers\MascotaController;
+use App\Http\Controllers\AplicacionMascotaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ReporteController;
@@ -66,7 +68,9 @@ Route::middleware(['auth'])->group(function () {
     | Dashboard
     |--------------------------------------------------------------------------
     */
-      Route::get('/inicio', [DashboardController::class, 'index'])->name('inicio');
+      Route::get('/inicio', [DashboardController::class, 'index'])->name('inicio');   
+Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])->name('dashboard.citas.eventos');
+
 
     /*
     |--------------------------------------------------------------------------
@@ -74,11 +78,14 @@ Route::middleware(['auth'])->group(function () {
     |--------------------------------------------------------------------------
     */
   
-    Route::get('agenda', [AgendaController::class, 'index'])->name('agenda');
-    Route::post('agenda/citas', [AgendaController::class, 'store'])->name('agenda.citas.store');
-    Route::put('agenda/citas/{cita}', [AgendaController::class, 'update'])->name('agenda.citas.update');
-    Route::patch('agenda/citas/{cita}/estado', [AgendaController::class, 'cambiarEstado'])->name('agenda.citas.estado');
-    Route::delete('agenda/citas/{cita}', [AgendaController::class, 'destroy'])->name('agenda.citas.destroy');
+  Route::get('agenda', [AgendaController::class, 'index'])->name('agenda'); 
+  Route::get('agenda/datos', [AgendaController::class, 'datos'])->name('agenda.datos');
+  Route::get('agenda/eventos', [AgendaController::class, 'eventos'])->name('agenda.eventos');
+  Route::post('agenda/citas', [AgendaController::class, 'store'])->name('agenda.citas.store');
+  Route::put('agenda/citas/{cita}', [AgendaController::class, 'update'])->name('agenda.citas.update');
+  Route::patch('agenda/citas/{cita}/estado', [AgendaController::class, 'cambiarEstado'])->name('agenda.citas.estado');
+  Route::patch('agenda/citas/{id}/mover', [AgendaController::class, 'mover'])->name('agenda.citas.mover');
+  Route::delete('agenda/citas/{cita}', [AgendaController::class, 'destroy'])->name('agenda.citas.destroy');
 
 
     /*
@@ -103,12 +110,11 @@ Route::middleware(['auth'])->group(function () {
     */
     Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes');
     Route::get('/clientes/datatable', [ClienteController::class, 'datatable'])->name('clientes.datatable');
-    Route::get('/clientes/{id}', [ClienteController::class, 'show'])->name('clientes.show');
     Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
     Route::get('/clientes/{id}/edit', [ClienteController::class, 'edit'])->name('clientes.edit');
     Route::put('/clientes/{id}', [ClienteController::class, 'update'])->name('clientes.update');
     Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
-    Route::get('/clientes/buscar', [ClienteController::class, 'buscar'])->name('clientes.buscar');
     Route::get('/clientes/{id}/mascotas', [ClienteController::class, 'mascotas'])->name('clientes.mascotas');
     Route::get('/clientes/{id}/detalle', [ClienteController::class, 'detalle'])->name('clientes.detalle');
 
@@ -120,10 +126,13 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/mascotas', [MascotaController::class, 'index'])->name('mascotas');
     Route::get('/mascotas/datatable', [MascotaController::class, 'datatable'])->name('mascotas.datatable');
     Route::post('/mascotas', [MascotaController::class, 'store'])->name('mascotas.store');
-    Route::put('/mascotas/{id}', [MascotaController::class, 'update'])->name('mascotas.update');
+     Route::put('/mascotas/{id}', [MascotaController::class, 'update'])->name('mascotas.update');
     Route::get('/mascotas/{id}/edit',  [MascotaController::class, 'edit'])->name('mascotas.edit');  
     Route::delete('/mascotas/{id}', [MascotaController::class, 'destroy'])->name('mascotas.destroy');
     Route::get('/mascotas/{id}/detalle', [MascotaController::class, 'detalle'])->name('mascotas.detalle');
+    Route::get('/mascotas/{mascota}/historias', [HistoriaClinicaController::class, 'porMascota'])->name('mascotas.historias.index');
+    Route::get('/mascotas/historia/{historia}', [HistoriaClinicaController::class, 'detalle'])->name('mascotas.historia.show');
+    Route::put('/mascotas/historia/{historia}', [HistoriaClinicaController::class, 'actualizarDesdeMascota'])->name('mascotas.historia.update');
 
     /*
     |--------------------------------------------------------------------------
@@ -140,6 +149,16 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/historias/{id}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
     Route::delete('/historias/{id}', [HistoriaClinicaController::class, 'destroy'])->name('historias.destroy');
     Route::post('/historias/{id}/adjunto', [HistoriaClinicaController::class, 'uploadAttachment'])->name('historias.adjunto');
+
+ /*
+    |--------------------------------------------------------------------------
+    | EXAMENES
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('/mascotas/{mascota}/examenes', [ExamenController::class, 'store'])->name('examenes.store');
+    Route::delete('/examenes/{examen}', [ExamenController::class, 'destroy'])->name('examenes.destroy');
+    
 
   /*
     |--------------------------------------------------------------------------
@@ -161,16 +180,10 @@ Route::middleware(['auth'])->group(function () {
     | DESPARASITACIÓN
     |--------------------------------------------------------------------------
     */
-    Route::get('/desparasitaciones', [DesparasitacionController::class, 'index'])->name('desparasitaciones');
-    Route::get('/desparasitaciones/datatable', [DesparasitacionController::class, 'datatable'])->name('desparasitaciones.datatable');
-    Route::get('/desparasitaciones/crear', [DesparasitacionController::class, 'create'])->name('desparasitaciones.crear');
-    Route::post('/desparasitaciones', [DesparasitacionController::class, 'store'])->name('desparasitaciones.store');
-    Route::get('/desparasitaciones/{id}/detalle', [DesparasitacionController::class, 'detalle'])->name('desparasitaciones.detalle');
-    Route::get('/desparasitaciones/{id}/editar', [DesparasitacionController::class, 'edit'])->name('desparasitaciones.editar');
-    Route::put('/desparasitaciones/{id}', [DesparasitacionController::class, 'update'])->name('desparasitaciones.update');
-    Route::delete('/desparasitaciones/{id}', [DesparasitacionController::class, 'destroy'])->name('desparasitaciones.destroy');
-    Route::get('/desparasitaciones/mascota/{mascotaId}', [DesparasitacionController::class, 'getByMascota'])->name('desparasitaciones.mascota');
-
+Route::post('/mascotas/{mascota}/aplicaciones/vacuna', [AplicacionMascotaController::class, 'storeVacuna'])->name('aplicaciones.vacuna.store');
+Route::post('/mascotas/{mascota}/aplicaciones/desparasitacion', [AplicacionMascotaController::class, 'storeDesparasitacion'])->name('aplicaciones.desparasitacion.store');
+Route::delete('/aplicaciones/vacuna/{aplicacion}', [AplicacionMascotaController::class, 'destroyVacuna'])->name('aplicaciones.vacuna.destroy');
+Route::delete('/aplicaciones/desparasitacion/{aplicacion}', [AplicacionMascotaController::class, 'destroyDesparasitacion'])->name('aplicaciones.desparasitacion.destroy');
 
     /*
     |--------------------------------------------------------------------------

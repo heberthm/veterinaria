@@ -1,0 +1,19 @@
+/* ============================================================ */
+/* 🔥 Badges de estado para DataTables                          */
+/* ============================================================ */
+.badge-activo,
+.badge-inactivo,
+.badge-fallecido {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.badge-activo    { background: #28a745; }   /* 🟢 verde */
+.badge-inactivo  { background: #6c757d; }   /* ⚪ gris */
+.badge-fallecido { background: #343a40; }   /* ⚫ oscuro */

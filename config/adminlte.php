@@ -391,18 +391,26 @@ return [
         ],
     ],
         'Select2' => [
-            'active' => false,
+            'active' => true,
             'files' => [
+                // JS de Select2
                 [
                     'type' => 'js',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/js/select2.min.js',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js',
                 ],
+                // CSS base de Select2 (obligatorio)
                 [
                     'type' => 'css',
                     'asset' => false,
-                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.3/css/select2.css',
+                    'location' => '//cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css',
                 ],
+                // 🎨 TEMA BOOTSTRAP 4 (obligatorio para que se vea bien)
+             [
+                'type' => 'css',
+                'asset' => false,
+                'location' => 'https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css',
+            ],
             ],
         ],
          'Toastr' => [
@@ -420,6 +428,14 @@ return [
                 ],
             ],
         ],
+
+        'SidebarCompacto' => [
+            'active' => true,
+            'files'  => [
+                ['type' => 'css', 'asset' => true, 'location' => 'css/sidebar-compacto.css'],
+            ],
+        ],
+
         'Chartjs' => [
             'active' => true,
             'files' => [
@@ -430,6 +446,22 @@ return [
                 ],
             ],
         ],
+        'Fullcalendar' => [
+            'active' => true,
+            'files' => [
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js',
+                ],
+                [
+                    'type' => 'js',
+                    'asset' => false,
+                    'location' => '//cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/es.global.min.js',  // 👈 locale
+                ],
+            ],
+        ],
+
         'Sweetalert2' => [
             'active' => true,
             'files' => [
@@ -438,6 +470,12 @@ return [
                     'asset' => true,
                      'location' => '//cdn.jsdelivr.net/npm/sweetalert2@11',
                 ],
+            ],
+        ],
+        'css' => [
+             'active' => false,
+            'files' => [
+            'css/badges.css',
             ],
         ],
         'Pace' => [

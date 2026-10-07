@@ -19,6 +19,9 @@ class HistoriaClinicaArchivo extends Model
         'peso_kb',
     ];
 
+     public function getNombreAttribute() { return $this->nombre_original; }
+    public function getTamanoAttribute() { return $this->peso_kb !== null ? $this->peso_kb * 1024 : null; }
+
     public function historiaClinica()
     {
         return $this->belongsTo(HistoriaClinica::class);

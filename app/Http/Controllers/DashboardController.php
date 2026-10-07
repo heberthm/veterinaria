@@ -6,14 +6,12 @@ use App\Models\Cita;
 use App\Models\Mascota;
 use App\Models\Producto;
 use App\Models\Venta;
-use App\Traits\GeneraCalendarioMensual;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    use GeneraCalendarioMensual;
-
     public function index()
     {
         $hoy = now()->toDateString();
@@ -30,13 +28,6 @@ class DashboardController extends Controller
 
         $inventarioBajo = Producto::stockBajo()->where('activo', true)->count();
         $mascotasRegistradas = Mascota::count();
-
-        $proximasCitas = Cita::with(['mascota.cliente'])
-            ->delDia($hoy)
-            ->whereIn('estado', ['pendiente', 'confirmada', 'en_atencion'])
-            ->orderBy('hora_inicio')
-            ->take(4)
-            ->get();
 
         $pacientesRecientes = Mascota::with('cliente')
             ->latest('created_at')
@@ -55,15 +46,59 @@ class DashboardController extends Controller
             ->orderBy('mes')
             ->get();
 
-        $calendario = $this->generarCalendario(now());
-
         return view('inicio', compact(
             'pacientesHoy', 'pacientesAyer',
             'citasHoy', 'citasAyer',
             'ventasHoy', 'ventasAyer',
             'inventarioBajo', 'mascotasRegistradas',
-            'proximasCitas', 'pacientesRecientes', 'inventarioBajoLista',
-            'ventasUltimos5Meses', 'calendario'
+            'pacientesRecientes', 'inventarioBajoLista',
+            'ventasUltimos5Meses'
         ));
+    }
+
+    public function eventos(Request $request)
+    {
+        $request->validate([
+            'start' => 'required|date',
+            'end'   => 'required|date',
+        ]);
+
+        $desde = Carbon::parse($request->start)->toDateString();
+        $hasta = Carbon::parse($request->end)->toDateString();
+
+        $colores = [
+            'confirmada'  => '#22C55E',
+            'pendiente'   => '#F59E0B',
+            'en_atencion' => '#2F6FED',
+            'cancelada'   => '#EF4444',
+        ];
+
+        $eventos = Cita::with('mascota.cliente')
+            ->whereBetween('fecha', [$desde, $hasta])
+            ->orderBy('hora_inicio')
+            ->get()
+            ->map(function ($cita) use ($colores) {
+                $fecha  = Carbon::parse($cita->fecha)->toDateString();
+                $inicio = Carbon::parse($cita->hora_inicio)->format('H:i:s');
+                $fin    = $cita->hora_fin ? Carbon::parse($cita->hora_fin)->format('H:i:s') : null;
+
+                return [
+                    'id'    => $cita->id,
+                    'title' => $cita->mascota->nombre ?? 'Cita',
+                    'start' => "$fecha $inicio",
+                    'end'   => $fin ? "$fecha $fin" : null,
+                    'color' => $colores[$cita->estado] ?? '#64748B',
+                    'extendedProps' => [
+                        'fecha'   => $fecha,
+                        'hora'    => Carbon::parse($cita->hora_inicio)->format('h:i A'),
+                        'estado'  => $cita->estado,
+                        'mascota' => $cita->mascota->nombre ?? '',
+                        'raza'    => $cita->mascota->raza ?? '',
+                        'cliente' => $cita->mascota->cliente->nombres ?? '',
+                    ],
+                ];
+            });
+
+        return response()->json($eventos);
     }
 }

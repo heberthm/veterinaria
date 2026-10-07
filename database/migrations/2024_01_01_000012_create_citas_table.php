@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('cliente_id')->constrained()->onDelete('cascade');
             $table->foreignId('mascota_id')->constrained()->onDelete('cascade');
             $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('veterinario_id')->nullable()->constrained('veterinarios')->onDelete('cascade');
             
             // Fechas y horas
             $table->date('fecha');
@@ -28,29 +29,8 @@ return new class extends Migration
             $table->time('hora_fin');
             
             // Tipo y estado
-            $table->enum('tipo', [
-                'consulta_general',
-                'vacunacion',
-                'emergencia',
-                'cirugia',
-                'odontologia',
-                'laboratorio',
-                'imagenologia',
-                'estetica',
-                'control',
-                'desparasitacion',
-                'certificado'
-            ])->default('consulta_general');
-            
-            $table->enum('estado', [
-                'agendada',
-                'confirmada',
-                'en_curso',
-                'completada',
-                'cancelada',
-                'no_asistio'
-            ])->default('agendada');
-            
+            $table->text('tipo_consulta')->nullable();            
+            $table->text('estado')->nullable();            
             // Información adicional
             $table->text('motivo');
             $table->text('observaciones')->nullable();

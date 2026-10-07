@@ -83,9 +83,11 @@ class MascotaController extends Controller
             ->addColumn('acciones', function ($m) {
                 return '
                     <div class="col-acciones">
-                        <button class="btn-accion btn-accion-ver"      onclick="verMascota('     . $m->id . ')" title="Ver"><i class="fas fa-eye"></i></button>
-                        <button class="btn-accion btn-accion-editar"   onclick="editarMascota('  . $m->id . ')" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button class="btn-accion btn-accion-eliminar" onclick="eliminarMascota(' . $m->id . ')" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        <button type="button" class="btn-accion btn-historia" data-id="'.$m->id.'" title="Editar historia clínica"><i class="fas fa-notes-medical"></i> </button>
+                        <button class="btn-accion btn-accion-historia" onclick="window.location.href=\'' . url('historias/' . $m->id) . '\'" title="Crear historia clínica"><i class="fas fa-notes-medical"></i></button>
+                        <button class="btn-accion btn-accion-ver"      onclick="verMascota('     . $m->id . ')" title="Ver datos de la mascota"><i class="fas fa-eye"></i></button>
+                        <button class="btn-accion btn-accion-editar"   onclick="editarMascota('  . $m->id . ')" title="Editar´datos de la mascota"><i class="fas fa-edit"></i></button>
+                        <button class="btn-accion btn-accion-eliminar" onclick="eliminarMascota(' . $m->id . ')" title="Eliminar datos de la mascota"><i class="fas fa-trash"></i></button>
                     </div>
                 ';
             })
@@ -200,14 +202,7 @@ class MascotaController extends Controller
      */
     public function update(Request $request, $id)
     {
-         // 🔥 DEBUG TEMPORAL
-    \Log::info('=== UPDATE MASCOTA DEBUG ===', [
-        'id'         => $id,
-        'estado_raw' => $request->estado,
-        'estado_tipo'=> gettype($request->estado),
-        'todos'      => $request->except(['_method', '_token']),
-    ]);
-
+    
         $tenantId = auth()->user()->tenant_id;
 
         $mascota = Mascota::whereHas('cliente', function ($q) use ($tenantId) {
@@ -323,36 +318,39 @@ class MascotaController extends Controller
     /**
      * Buscar mascotas (API / typeahead)
      */
-    public function buscar(Request $request)
-    {
-        $query    = $request->get('q', '');
-        $tenantId = auth()->user()->tenant_id;
+  public function buscar(Request $request)
+{
+    $query    = $request->get('q', '');
+    $page     = (int) $request->get('page', 1);
+    $perPage  = 20;
+    $tenantId = auth()->user()->tenant_id;
 
-        $mascotas = Mascota::whereHas('cliente', function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId);
-            })
-            ->where(function ($q) use ($query) {
-                $q->where('nombre', 'LIKE', "%{$query}%")
-                  ->orWhere('numero_chip', 'LIKE', "%{$query}%")
-                  ->orWhere('raza', 'LIKE', "%{$query}%");
-            })
-            ->with('cliente')
-            ->limit(20)
-            ->get();
+    $baseQuery = Cliente::where('tenant_id', $tenantId)
+        ->where('activo', true)
+        ->where(function ($q) use ($query) {
+            $q->where('nombres', 'LIKE', "%{$query}%")
+              ->orWhere('apellidos', 'LIKE', "%{$query}%")
+              ->orWhere('numero_documento', 'LIKE', "%{$query}%")
+              ->orWhere('celular', 'LIKE', "%{$query}%")
+              ->orWhere('email', 'LIKE', "%{$query}%");
+        });
 
-        return response()->json($mascotas->map(function ($mascota) {
-            $clienteNombre = $mascota->cliente
-                ? $mascota->cliente->nombres . ' ' . $mascota->cliente->apellidos
-                : '';
+    $total = $baseQuery->count();
 
-            return [
-                'id'      => $mascota->id,
-                'nombre'  => $mascota->nombre,
-                'especie' => $mascota->especie,
-                'raza'    => $mascota->raza,
-                'cliente' => $clienteNombre,
-                'texto'   => $mascota->nombre . ' - ' . $mascota->especie . ' (' . $clienteNombre . ')',
-            ];
-        }));
-    }
+    $clientes = $baseQuery
+        ->orderBy('nombres')
+        ->skip(($page - 1) * $perPage)
+        ->take($perPage)
+        ->get();
+
+    return response()->json([
+        'results' => $clientes->map(fn($c) => [
+            'id'   => $c->id,
+            'text' => $c->nombres . ' ' . $c->apellidos . ' - ' . $c->numero_documento,
+        ]),
+        'pagination' => [
+            'more' => ($page * $perPage) < $total,
+        ],
+    ]);
+ }
 }

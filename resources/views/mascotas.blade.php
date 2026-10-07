@@ -84,16 +84,12 @@
                     @csrf
                     
                     <div class="row">
-                        <div class="col-md-6">
+                       <div class="col-md-6">
                             <div class="form-group">
                                 <label>Propietario <span class="text-danger">*</span></label>
-                                <select name="cliente_id" class="form-control select2" required>
-                                    <option value="">Seleccionar propietario...</option>
-                                    @foreach($clientes as $cliente)
-                                        <option value="{{ $cliente->id }}">
-                                            {{ $cliente->nombres }} {{ $cliente->apellidos }} - {{ $cliente->numero_documento }}
-                                        </option>
-                                    @endforeach
+                                <select name="cliente_id" id="cliente_id_select" 
+                                        class="select2-clientes" required style="width:100%">
+                                    <option value="">Buscar propietario...</option>
                                 </select>
                             </div>
                         </div>
@@ -120,6 +116,7 @@
                                     <option value="bovino">🐄 Bovino</option>
                                     <option value="porcino">🐷 Porcino</option>
                                     <option value="conejo">🐰 Conejo</option>
+                                    <option value="otro">otro</option>
                                 </select>
                             </div>
                         </div>
@@ -269,6 +266,78 @@
 </div>
 
 
+{{-- ============================================================ --}}
+{{-- MODAL FLTRAR HISTORIA CLINICA POR FECHA --}}
+{{-- ============================================================ --}}
+    <div class="modal fade" id="modalHistoria" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form class="modal-content" id="formHistoria">
+        @csrf
+        <div class="modal-header">
+            <h5 class="modal-title">Historia clínica · <span id="histMascotaNombre"></span></h5>
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <input type="hidden" id="histId">
+
+            <div class="form-group">
+            <label>Consulta</label>
+            <select id="histSelector" class="form-control"></select>
+            <small class="text-muted">Veterinario: <span id="histVeterinario">—</span></small>
+            </div>
+
+            <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>Fecha de consulta</label>
+                <input type="datetime-local" name="fecha_consulta" class="form-control">
+            </div>
+            <div class="form-group col-md-6">
+                <label>Próxima cita sugerida</label>
+                <input type="date" name="proxima_cita_sugerida" class="form-control">
+            </div>
+            </div>
+
+            <div class="form-group">
+            <label>Motivo de consulta</label>
+            <input type="text" name="motivo_consulta" class="form-control">
+            </div>
+            <div class="form-group">
+            <label>Anamnesis</label>
+            <textarea name="anamnesis" rows="2" class="form-control"></textarea>
+            </div>
+
+            <h6 class="mt-3">Signos vitales</h6>
+            <div class="form-row">
+            <div class="form-group col-md-3"><label>Temp. (°C)</label><input type="number" step="0.1" name="temperatura" class="form-control"></div>
+            <div class="form-group col-md-3"><label>F. cardiaca</label><input type="number" name="frecuencia_cardiaca" class="form-control"></div>
+            <div class="form-group col-md-3"><label>F. respiratoria</label><input type="number" name="frecuencia_respiratoria" class="form-control"></div>
+            <div class="form-group col-md-3"><label>Peso (kg)</label><input type="number" step="0.01" name="peso" class="form-control"></div>
+            </div>
+            <div class="form-row">
+            <div class="form-group col-md-6"><label>Estado corporal</label><input type="text" name="estado_corporal" class="form-control"></div>
+            <div class="form-group col-md-6"><label>Hidratación</label><input type="text" name="hidratacion" class="form-control"></div>
+            </div>
+
+            <div class="form-group"><label>Examen físico</label><textarea name="examen_fisico" rows="2" class="form-control"></textarea></div>
+            <div class="form-group"><label>Diagnóstico</label><textarea name="diagnostico" rows="2" class="form-control"></textarea></div>
+            <div class="form-group"><label>Tratamiento</label><textarea name="tratamiento" rows="3" class="form-control"></textarea></div>
+            <div class="form-group"><label>Observaciones</label><textarea name="observaciones" rows="2" class="form-control"></textarea></div>
+
+            <hr>
+            <label class="mb-2">Archivos adjuntos</label>
+            <div id="histArchivos" class="d-flex flex-wrap" style="gap:10px"></div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-light" data-dismiss="modal">Cerrar</button>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+        </form>
+    </div>
+    </div>
+
+
 @stop
 
 @push('css')
@@ -337,22 +406,192 @@
     .badge-activo   { background:#28a745; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
     .badge-inactivo { background:#dc3545; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
 
+    /* Dropdown por encima de todo */
+.select2-container {
+    z-index: 9999 !important;
+}
+
+.select2-dropdown {
+    z-index: 9999 !important;
+}
+
+/* El modal debe permitir que el dropdown se salga de su caja */
+#modal-mascota .modal-content {
+    overflow: visible !important;
+}
+
+#modal-mascota .modal-body {
+    overflow: visible !important;
+}
+
+/* ============================================================ */
+/* 🔥 FIX DEFINITIVO: Select2 misma altura que .form-control     */
+/* ============================================================ */
+    body .select2-container .select2-selection--single,
+    body .select2-container--bootstrap4 .select2-selection--single,
+    body #modal-mascota .select2-container .select2-selection--single,
+    body #modal-mascota .select2-container--bootstrap4 .select2-selection--single {
+        height: 37.5px !important;
+        min-height: 37.5px !important;
+        max-height: 37.5px !important;
+        padding: 0 .75rem !important;
+        display: flex !important;
+        align-items: center !important;
+        box-sizing: border-box !important;
+        border: 1px solid #ced4da !important;
+        border-radius: .25rem !important;
+        background-color: #fff !important;
+        line-height: normal !important;
+    }
+
+    body .select2-container .select2-selection--single .select2-selection__rendered,
+    body .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        line-height: 35.5px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        color: #495057 !important;
+        font-size: 1rem !important;
+      
+    }
+
+    body .select2-container .select2-selection--single .select2-selection__arrow,
+    body .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+        min-height: 35.5px !important;
+        top: 0 !important;
+        right: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    body .select2-container .select2-selection--single .select2-selection__arrow b {
+        margin-top: 0 !important;
+        border-color: #6c757d transparent transparent transparent !important;
+    }
+
+    body .select2-container .select2-selection--single .select2-selection__placeholder {
+        color: #6c757d !important;
+        line-height: 35.5px !important;
+    }
+
+    body .select2-container .select2-selection--single .select2-selection__clear {
+        color: #6c757d !important;
+        font-weight: 700 !important;
+        margin-right: 6px !important;
+        line-height: 35.5px !important;
+    }
+
+    .btn-accion.btn-accion-historia {
+        background: #16A34A !important;
+        color: #fff !important;
+        border: 1px solid #16A34A !important;
+    }
+    .btn-accion.btn-accion-historia:hover {
+        background: #15803D !important;
+        border-color: #15803D !important;
+    }
+     
+     .btn-accion.btn-historia,
+        table.dataTable .btn-accion.btn-historia {
+            background: #7C3AED !important;
+            color: #fff !important;
+            border: 1px solid #7C3AED !important;
+        }
+        .btn-accion.btn-historia:hover,
+        table.dataTable .btn-accion.btn-historia:hover {
+            background: #6D28D9 !important;
+            border-color: #6D28D9 !important;
+            color: #fff !important;
+        }
+        .btn-accion.btn-historia i { color: #fff !important; }
+
 </style>
+
 @endpush
 @push('js')
 <script>
 $(document).ready(function () {
+ 
     // ============================================================
-    // SELECT2
-    // ============================================================
-    if ($.fn.select2) {
-        $('.select2').select2({
-            theme: 'bootstrap4',
-            width: '100%',
-            placeholder: 'Buscar propietario...',
-            allowClear: true
-        });
-    }
+// 🔥 SELECT2 CON BÚSQUEDA AJAX — PROPIETARIOS
+// ============================================================
+if ($.fn.select2) {
+    $('#cliente_id_select').select2({
+        
+        width: '100%',
+         dropdownParent: $('#modal-mascota'),
+        placeholder: 'Buscar por nombre, documento o celular...',
+        allowClear: true,
+        minimumInputLength: 2,              // 👈 busca desde 2 caracteres
+      
+        ajax: {
+            url: "{{ route('clientes.buscar') }}",
+            dataType: 'json',
+            delay: 300,                      // 👈 espera 300ms antes de buscar
+            data: function (params) {
+                return {
+                    q: params.term,          // 👈 término de búsqueda
+                    page: params.page || 1,
+                };
+            },
+            processResults: function (data, params) {
+                params.page = params.page || 1;
+
+                return {
+                    results: data.results,   // 👈 array { id, text }
+                    pagination: {
+                        more: false,         // o true si implementas paginación
+                    },
+                };
+            },
+            cache: true,
+        },
+        language: {
+            inputTooShort: function () {
+                return 'Escribe al menos 2 caracteres...';
+            },
+            noResults: function () {
+                return 'No se encontraron propietarios';
+            },
+            searching: function () {
+                return 'Buscando...';
+            },
+            errorLoading: function () {
+                return 'Error al cargar resultados';
+            },
+        },
+        templateResult: function (cliente) {
+            if (cliente.loading) return cliente.text;
+
+            // 🔥 Personalizar cómo se ve cada opción en el dropdown
+            return $(
+                `<div>
+                    <i class="fas fa-user text-primary mr-2"></i>
+                    <strong>${cliente.text}</strong>
+                </div>`
+            );
+        },
+        templateSelection: function (cliente) {
+            // 🔥 Cómo se ve la opción seleccionada
+            if (!cliente.id) return cliente.text;
+            return cliente.text;
+        },
+    });
+}
+
+// ============================================================
+// 🔥 AUTO-FOCUS EN SELECT2 AL HACER CLIC
+// ============================================================
+$(document).on('select2:open', function (e) {
+    // Enfocar el input de búsqueda del dropdown abierto
+    setTimeout(function () {
+        const searchField = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchField) {
+            searchField.focus();
+        }
+    }, 50);
+});
+
 
     // ============================================================
     // DATATABLE
@@ -454,6 +693,7 @@ $(document).ready(function () {
         $form[0].reset();
         $form.find('select').val('').trigger('change');
         $form.removeData('modo').removeData('id');
+        
         $('#modal-mascota .modal-title').html('<i class="fas fa-paw text-primary"></i> Nueva Mascota');
         $('#btn-guardar-mascota').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
         $form.find('[name="activo"]').prop('checked', true);
@@ -554,6 +794,23 @@ function editarMascota(id) {
     .then((data) => {
         const m = data.mascota || data;
         console.log('Datos de la mascota:', m);   // 👈 temporal para debug
+
+         // 🔥 Precargar el propietario actual en el Select2
+        if (m.cliente_id) {
+            const clienteTexto = m.cliente
+                ? `${m.cliente.nombres} ${m.cliente.apellidos} - ${m.cliente.numero_documento}`
+                : `Cliente #${m.cliente_id}`;
+
+            // Crear la opción si no existe
+            const $select = $('#cliente_id_select');
+            if ($select.find("option[value='" + m.cliente_id + "']").length === 0) {
+                const option = new Option(clienteTexto, m.cliente_id, true, true);
+                $select.append(option).trigger('change');
+            } else {
+                $select.val(m.cliente_id).trigger('change');
+            }
+        }
+
 
         $('#modal-mascota .modal-title').html('<i class="fas fa-paw text-primary"></i> Editar Mascota');
 
@@ -692,6 +949,93 @@ $('#fecha_nacimiento_mascota').on('input change', function () {
     $('#edad_display').val(calcularEdad(fecha));
 });
 
+// ============================================================
+// 🔥 FILTRR HISTORIA CLINICA POR FECHA
+// ============================================================
+
+
+    const baseHist = @json(url('mascotas'));
+    const camposHist = ['fecha_consulta','proxima_cita_sugerida','motivo_consulta','anamnesis',
+        'temperatura','frecuencia_cardiaca','frecuencia_respiratoria','peso',
+        'estado_corporal','hidratacion','examen_fisico','diagnostico','tratamiento','observaciones'];
+
+    const escHtml = (s) => $('<div>').text(s ?? '').html();
+
+    function cargarHistoria(id) {
+        $.get(`${baseHist}/historia/${id}`)
+            .done(res => {
+                const h = res.historia;
+                $('#histId').val(h.id);
+                $('#histVeterinario').text(h.veterinario ?? '—');
+                camposHist.forEach(k => $(`#formHistoria [name="${k}"]`).val(h[k] ?? ''));
+
+                const $a = $('#histArchivos').empty();
+                if (!res.archivos.length) {
+                    $a.html('<p class="text-muted small mb-0">Sin archivos adjuntos.</p>');
+                    return;
+                }
+                res.archivos.forEach(f => {
+                    const preview = f.tipo === 'imagen'
+                        ? `<img src="${f.url}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px">`
+                        : `<div class="d-flex align-items-center justify-content-center bg-light" style="height:90px;border-radius:6px">
+                            <i class="far fa-file-pdf fa-2x text-danger"></i></div>`;
+                    $a.append(`
+                        <a href="${f.url}" target="_blank" rel="noopener" class="text-dark" style="width:120px;text-decoration:none">
+                            ${preview}
+                            <div class="small text-truncate mt-1" title="${escHtml(f.nombre)}">${escHtml(f.nombre)}</div>
+                            <div class="small text-muted">${escHtml(f.peso_kb)} KB</div>
+                        </a>`);
+                });
+            })
+            .fail(() => Swal.fire('Error', 'No se pudo cargar la consulta.', 'error'));
+    }
+
+    // Botón en la tabla de mascotas
+    $(document).on('click', '.btn-historia', function () {
+        const mascotaId = $(this).data('id');
+
+        $.get(`${baseHist}/${mascotaId}/historias`)
+            .done(res => {
+                $('#histMascotaNombre').text(res.mascota.nombre);
+                $('#histSelector').html(
+                    res.historias.map(h => `<option value="${h.id}">${escHtml(h.etiqueta)}</option>`).join('')
+                );
+                cargarHistoria(res.historias[0].id);   // la más reciente
+                $('#modalHistoria').modal('show');
+            })
+            .fail(xhr => Swal.fire('Sin historia', xhr.responseJSON?.message ?? 'No se pudo cargar la historia.', 'info'));
+    });
+
+    // Cambiar de consulta
+    $('#histSelector').on('change', function () { cargarHistoria(this.value); });
+
+    // Guardar
+    $('#formHistoria').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#histId').val();
+
+        $.ajax({
+            url: `${baseHist}/historia/${id}`,
+            method: 'PUT',
+            data: $(this).serialize(),
+            headers: { 'X-CSRF-TOKEN': $('#formHistoria input[name=_token]').val() },
+        })
+        .done(res => {
+            toastr.success(res.message);
+            // refresca la etiqueta del selector con fecha/motivo nuevos
+            const motivo = $('#formHistoria [name=motivo_consulta]').val() || 'Sin motivo';
+            const fecha = $('#formHistoria [name=fecha_consulta]').val();
+            if (fecha) {
+                const d = new Date(fecha);
+                const f = d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                $('#histSelector option:selected').text(`${f} · ${motivo}`);
+            }
+        })
+        .fail(xhr => {
+            const errs = xhr.responseJSON?.errors;
+            Swal.fire('Error', errs ? Object.values(errs).flat().join('<br>') : 'No se pudo guardar.', 'error');
+        });
+    });
 
 // ============================================================
 // 🔥 FORZAR SCOPE GLOBAL

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
@@ -33,9 +34,11 @@ class ClienteController extends Controller
         return DataTables::of($clientes)
             ->addColumn('documento', fn($c) => $c->tipo_documento . ' - ' . $c->numero_documento)
             ->addColumn('mascotas_count', fn($c) => $c->mascotas()->count())
-            ->addColumn('estado', fn($c) => $c->activo
-                ? '<span class="badge-activo">Activo</span>'
-                : '<span class="badge-inactivo">Inactivo</span>')
+           ->addColumn('estado', function ($c) {                                                                                                                                                                                                                                                        
+                return $c->activo
+                    ? '<span class="badge-activo">🟢 Activo</span>'
+                    : '<span class="badge-inactivo">⚪ Inactivo</span>';
+            })
             ->addColumn('acciones', function ($c) {
                 return '
                     <button class="btn-accion btn-accion-ver"      onclick="verCliente('     . $c->id . ')" title="Ver"><i class="fas fa-eye"></i></button>
@@ -46,6 +49,8 @@ class ClienteController extends Controller
             ->rawColumns(['estado', 'acciones'])
             ->make(true);
     }
+
+    
 
     // ============================================================
     // 🔥 CREAR
@@ -223,25 +228,45 @@ class ClienteController extends Controller
     // ============================================================
     // 🔥 BUSCAR (typeahead del POS)
     // ============================================================
-    public function buscar(Request $request)
-    {
-        $query    = $request->get('q', '');
-        $tenantId = auth()->user()->tenant_id;
+        public function buscar(Request $request)
+        {
+            $query    = $request->get('q', '');
+            $tenantId = auth()->user()->tenant_id;
 
-        $clientes = Cliente::where('tenant_id', $tenantId)
-            ->where(function ($q) use ($query) {
-                $q->where('nombres', 'LIKE', "%{$query}%")
-                  ->orWhere('apellidos', 'LIKE', "%{$query}%")
-                  ->orWhere('numero_documento', 'LIKE', "%{$query}%")
-                  ->orWhere('email', 'LIKE', "%{$query}%")
-                  ->orWhere('celular', 'LIKE', "%{$query}%");
-            })
-            ->limit(20)
-            ->get();
+            // 🔥 Columnas que SÍ existen en la tabla
+            $columnas = \Illuminate\Support\Facades\Schema::getColumnListing('clientes');
 
-        return response()->json($clientes->map(fn($c) => [
-            'id'    => $c->id,
-            'texto' => $c->nombres . ' ' . $c->apellidos . ' - ' . $c->numero_documento,
-        ]));
-    }
-}
+            $clientes = Cliente::where('tenant_id', $tenantId)
+                ->where('activo', true)
+                ->where(function ($q) use ($query, $columnas) {
+                    if (in_array('nombres', $columnas)) {
+                        $q->orWhere('nombres', 'LIKE', "%{$query}%");
+                    }
+                    if (in_array('apellidos', $columnas)) {
+                        $q->orWhere('apellidos', 'LIKE', "%{$query}%");
+                    }
+                    if (in_array('numero_documento', $columnas)) {
+                        $q->orWhere('numero_documento', 'LIKE', "%{$query}%");
+                    }
+                    if (in_array('celular', $columnas)) {
+                        $q->orWhere('celular', 'LIKE', "%{$query}%");
+                    }
+                    if (in_array('telefono', $columnas)) {
+                        $q->orWhere('telefono', 'LIKE', "%{$query}%");
+                    }
+                    if (in_array('email', $columnas)) {
+                        $q->orWhere('email', 'LIKE', "%{$query}%");
+                    }
+                })
+                ->orderBy('nombres')
+                ->limit(20)
+                ->get();
+
+            return response()->json([
+                'results' => $clientes->map(fn($c) => [
+                    'id'   => $c->id,
+                    'text' => trim($c->nombres . ' ' . ($c->apellidos ?? '') . ' - ' . ($c->numero_documento ?? '')),
+                ]),
+            ]);
+        } 
+ }

@@ -231,22 +231,78 @@
         font-size: 13px;
         vertical-align: middle;
     }
-    .badge-activo   { background:#28a745; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
-    .badge-inactivo { background:#dc3545; color:#fff; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:600; }
-   .btn-accion {
-    display:inline-flex; align-items:center; justify-content:center;
-    width:24px; height:24px; border-radius:5px; border:none;
-    color:#fff; font-size:10px; cursor:pointer; margin:0 1px;
-    padding:0; line-height:1;
-    transition: transform .1s, filter .15s;
+   .badge-activo,
+.badge-inactivo {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.4;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    letter-spacing: .2px;
+}
+
+.badge-activo {
+    background: #28a745;    /* 🟢 Verde */
+}
+
+.badge-inactivo {
+    background: #6c757d;    /* ⚪ Gris */
+}
+  /* ============================================================ */
+/* 🔥 BOTONES DE ACCIÓN — Compactos y alineados                 */
+/* ============================================================ */
+    .btn-accion {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
+        transition: filter .15s, transform .1s;
     }
+
     .btn-accion:hover  { filter: brightness(1.1); }
     .btn-accion:active { transform: scale(.95); }
-    .btn-accion i      { font-size:10px; }
 
-    .btn-accion-ver      { background:#007bff; }
-    .btn-accion-editar   { background:#ffc107; color:#212529; }
-    .btn-accion-eliminar { background:#dc3545; }
+    .btn-accion i {
+        font-size: 11px;
+        line-height: 1;
+        pointer-events: none;
+    }
+
+    .btn-accion-ver      { background: #007bff; }
+    .btn-accion-editar   { background: #ffc107; color: #212529; }
+    .btn-accion-eliminar { background: #dc3545; }
+
+    /* 🔥 Contenedor de los 3 botones: los alinea en fila con separación */
+    .col-acciones {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    /* 🔥 Evita que la celda se parta en varias líneas */
+    #tablaClientes td:last-child,
+    #tablaClientes th:last-child {
+        white-space: nowrap;
+        text-align: center;
+        width: 110px;
+        min-width: 110px;
+    }
     .cd-item {
         display:flex; align-items:center; gap:10px;
         background:#f8f9fa; padding:10px 14px; border-radius:8px;
@@ -511,10 +567,10 @@
     // 🔥 VER DETALLE
     // ============================================================
     function verCliente(id) {
-        const cont = $id('detalleClienteBody');
-        cont.innerHTML = '';  // Limpiar por si acaso
+        const cont = document.getElementById('detalleClienteBody');
+        cont.innerHTML = '';
 
-        // 👇 El modal NO se abre aquí todavía
+        // 👇 NO abras el modal aquí todavía
 
         fetch(`${cfg.rutaBase}/${id}/detalle`, {
             headers: { 'Accept': 'application/json' },
@@ -525,59 +581,55 @@
         })
         .then((data) => {
             const c = data.cliente || data;
-            const mascotas = (c.mascotas || []).map((m) => `
-                <div class="cd-pet">
-                    <i class="fas fa-paw"></i>
-                    <strong>${escapeHtml(m.nombre || '—')}</strong>
-                    <span>${escapeHtml(m.especie || '')} ${escapeHtml(m.raza || '')}</span>
-                </div>
-            `).join('') || '<p class="text-muted small">Sin mascotas registradas.</p>';
+
+            const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (ch) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+            }[ch]));
+
+            const val   = (v) => (v !== null && v !== undefined && v !== '') ? esc(v) : '—';
+            const fecha = (f) => formatearFecha(f);
 
             const inicial = ((c.nombres || '?').charAt(0) + (c.apellidos || '').charAt(0)).toUpperCase();
 
-            cont.innerHTML = `
-                <div class="d-flex align-items-center mb-4">
-                    <div class="cd-avatar mr-3">${escapeHtml(inicial)}</div>
-                    <div>
-                        <h5 class="mb-0 font-weight-bold">${escapeHtml(c.nombres || '')} ${escapeHtml(c.apellidos || '')}</h5>
-                        <span class="text-muted small">${escapeHtml(c.tipo_documento || '')} ${escapeHtml(c.numero_documento || '')}</span>
-                        <span class="ml-2 ${c.activo ? 'badge-activo' : 'badge-inactivo'}">
-                            ${c.activo ? 'Activo' : 'Inactivo'}
-                        </span>
-                    </div>
-                </div>
+            // 👇 Construir el HTML SIN espacios innecesarios entre tags
+            cont.innerHTML =
+                '<div class="d-flex align-items-center mb-4">' +
+                    '<div class="cd-avatar mr-3">' + esc(inicial) + '</div>' +
+                    '<div>' +
+                        '<h5 class="mb-0 font-weight-bold">' + esc(c.nombres || '') + ' ' + esc(c.apellidos || '') + '</h5>' +
+                        '<span class="text-muted small">' + esc(c.tipo_documento || '') + ' ' + esc(c.numero_documento || '') + '</span>' +
+                        '<span class="ml-2 ' + (c.activo ? 'badge-activo' : 'badge-inactivo') + '">' +
+                            (c.activo ? 'Activo' : 'Inactivo') +
+                        '</span>' +
+                    '</div>' +
+                '</div>' +
 
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="font-weight-bold"><i class="fas fa-address-card"></i> Contacto</h6>
-                        ${c.celular   ? `<div class="cd-item"><i class="fas fa-phone"></i> <strong>Celular:</strong> ${escapeHtml(c.celular)}</div>` : ''}
-                        ${c.email     ? `<div class="cd-item"><i class="fas fa-envelope"></i> <strong>Email:</strong> ${escapeHtml(c.email)}</div>` : ''}
-                        ${c.direccion ? `<div class="cd-item"><i class="fas fa-map-marker-alt"></i> <strong>Dirección:</strong> ${escapeHtml(c.direccion)}</div>` : ''}
-                        ${c.barrio    ? `<div class="cd-item"><i class="fas fa-home"></i> <strong>Barrio:</strong> ${escapeHtml(c.barrio)}</div>` : ''}
-                        ${c.ciudad    ? `<div class="cd-item"><i class="fas fa-city"></i> <strong>Ciudad:</strong> ${escapeHtml(c.ciudad)}</div>` : ''}
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="font-weight-bold"><i class="fas fa-info-circle"></i> Información</h6>
-                        ${c.genero           ? `<div class="cd-item"><i class="fas fa-venus-mars"></i> <strong>Género:</strong> ${escapeHtml(c.genero)}</div>` : ''}
-                        ${c.fecha_nacimiento ? `<div class="cd-item"><i class="fas fa-birthday-cake"></i> <strong>Nacimiento:</strong> ${escapeHtml(c.fecha_nacimiento)}</div>` : ''}
-                        <div class="cd-item">
-                            <i class="fas fa-calendar-plus"></i>
-                            <strong>Registro:</strong>
-                            ${c.created_at ? new Date(c.created_at).toLocaleDateString('es-CO') : '—'}
-                        </div>
-                    </div>
-                </div>
+                '<div class="row">' +
+                    '<div class="col-md-6">' +
+                        '<h6 class="font-weight-bold"><i class="fas fa-address-card"></i> Contacto</h6>' +
+                        (c.celular   ? '<div class="cd-item"><i class="fas fa-phone"></i> <strong>Celular:</strong> '     + esc(c.celular)   + '</div>' : '') +
+                        (c.email     ? '<div class="cd-item"><i class="fas fa-envelope"></i> <strong>Email:</strong> '     + esc(c.email)     + '</div>' : '') +
+                        (c.direccion ? '<div class="cd-item"><i class="fas fa-map-marker-alt"></i> <strong>Dirección:</strong> ' + esc(c.direccion) + '</div>' : '') +
+                        (c.barrio    ? '<div class="cd-item"><i class="fas fa-home"></i> <strong>Barrio:</strong> '       + esc(c.barrio)    + '</div>' : '') +
+                        (c.ciudad    ? '<div class="cd-item"><i class="fas fa-city"></i> <strong>Ciudad:</strong> '       + esc(c.ciudad)    + '</div>' : '') +
+                    '</div>' +
+                    '<div class="col-md-6">' +
+                        '<h6 class="font-weight-bold"><i class="fas fa-info-circle"></i> Información</h6>' +
+                        (c.genero           ? '<div class="cd-item"><i class="fas fa-venus-mars"></i> <strong>Género:</strong> '     + esc(c.genero)          + '</div>' : '') +
+                        (c.fecha_nacimiento ? '<div class="cd-item"><i class="fas fa-birthday-cake"></i> <strong>Nacimiento:</strong> ' + fecha(c.fecha_nacimiento) + '</div>' : '') +
+                        '<div class="cd-item">' +
+                            '<i class="fas fa-calendar-plus"></i>' +
+                            '<strong>Registro:</strong> ' +
+                            (c.created_at ? new Date(c.created_at).toLocaleDateString('es-CO') : '—') +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
 
-                <h6 class="font-weight-bold mt-3"><i class="fas fa-paw"></i> Mascotas (${(c.mascotas || []).length})</h6>
-                ${mascotas}
-            `;
-
-            // 👇 AHORA SÍ abrimos el modal, cuando ya hay contenido
+            // 👇 AHORA SÍ abrimos el modal, cuando el HTML ya está listo
             jQuery('#modalDetalleCliente').modal('show');
         })
         .catch((err) => {
-            cont.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(err.message)}</div>`;
-            // Opcional: abrir el modal para mostrar el error
+            cont.innerHTML = '<div class="alert alert-danger mb-0">' + err.message + '</div>';
             jQuery('#modalDetalleCliente').modal('show');
         });
     }
@@ -653,6 +705,24 @@
     window.editarCliente   = editarCliente;
     window.verCliente      = verCliente;
     window.eliminarCliente = eliminarCliente;
+
+    // ============================================================
+// 🔥 FORMATEAR FECHA A dd/mm/aaaa
+// ============================================================
+    function formatearFecha(fecha) {
+        if (!fecha) return '—';
+
+        // Si viene como "1992-05-21T00:00:00.000000Z" → cortar a "1992-05-21"
+        const soloFecha = String(fecha).substring(0, 10);
+
+        // Separar en año, mes, día
+        const partes = soloFecha.split('-');
+        if (partes.length !== 3) return '—';
+
+        const [anio, mes, dia] = partes;
+
+        return `${dia}/${mes}/${anio}`;   // dd/mm/aaaa
+    }
 
     // ============================================================
     // 🔥 INIT
