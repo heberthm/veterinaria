@@ -112,8 +112,9 @@
 
                 <div class="modal-body">
                     <div class="vc-field">
-                        <label>Mascota <span class="text-danger">*</span></label>
-                        <select name="mascota_id" id="citaMascota" class="form-control" required>
+                        <label for="citaMascota">Mascota <span class="text-danger">*</span></label>
+                        <select name="mascota_id" id="citaMascota" class="form-control select2-mascota" required
+                                style="width: 100%;">
                             <option value="">Selecciona una mascota...</option>
                             @foreach ($mascotas as $mascota)
                                 <option value="{{ $mascota->id }}">
@@ -155,7 +156,7 @@
                         </div>
                         <div class="col-3 vc-field">
                             <label>Hora fin</label>
-                            <input type="time" name="hora_fin" id="citaHoraFin" class="form-control">
+                            <input type="time" name="hora_fin" id="citaHoraFin" class="form-control" required>
                         </div>
                     </div>
 
@@ -544,11 +545,18 @@
 </style>
 @endpush
 
+@push('css')
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
+@endpush
+
 @push('js')
 {{-- FullCalendar 6 --}}
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/es.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{{-- Select2: quita esta línea si tu layout ya lo carga --}}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 <script>
 (function () {
@@ -600,6 +608,7 @@
         'X-Requested-With': 'XMLHttpRequest',
         'X-CSRF-TOKEN': cfg.csrfToken,
     });
+    
 
     // ============================================================
     // FULLCALENDAR
@@ -803,12 +812,8 @@
                 });
             },
 
-            // Click en día → nueva cita
-            dateClick: function (info) {
-                abrirModalNueva(info.dateStr);
-            },
-
-            // Seleccionar rango → nueva cita
+            // Click en día / espacio, o seleccionar rango → nueva cita
+            // (un clic simple también dispara select; con dateClick el modal se abría dos veces)
             select: function (info) {
                 abrirModalNueva(info.startStr);
                 calendar.unselect();
@@ -1086,7 +1091,7 @@
                 <div>${esc(cita.motivo || 'Sin motivo registrado.')}</div>
             </div>
             <div style="margin-top:16px;">
-                <button type="button" class="vc-btn vc-btn-success" id="btnEditarCita"
+                <button type="button" class="vc-btn vc-btn-primary" id="btnEditarCita"
                         style="background:#16A34A;border:1px solid #16A34A;color:#fff;">
                     <i class="fas fa-edit"></i> Editar
                 </button>
@@ -1098,8 +1103,17 @@
     // ============================================================
     // MODAL: NUEVA / EDITAR / GUARDAR / ELIMINAR
     // ============================================================
+    // Asigna la mascota y avisa a Select2 para que refresque lo que muestra
+    function setMascota(id) {
+        const el = $('#citaMascota');
+        if (!el) return;
+        el.value = id || '';
+        if (window.jQuery) window.jQuery(el).trigger('change');
+    }
+
     function resetModal() {
         $('#formNuevaCita')?.reset();
+        setMascota('');
         $('#citaId').value = '';
         $('#erroresNuevaCita').innerHTML = '';
         $('#btnEliminarCita').style.display = 'none';
@@ -1112,7 +1126,10 @@
 
         const [fecha, hora] = String(fechaStr || fechaISO(new Date())).split('T');
         $('#citaFecha').value = fecha;
-        if (hora) $('#citaHoraInicio').value = hora.substring(0, 5);
+
+        // Con hora (clic en un espacio de Semana/Día) se usa esa hora; si no, la hora actual.
+        // En ambos casos la hora fin queda 30 minutos después de la de inicio.
+        horasAutomaticas(hora ? hora.substring(0, 5) : null);
 
         window.jQuery('#modalNuevaCita').modal('show');
     }
@@ -1121,7 +1138,7 @@
         resetModal();
 
         $('#citaId').value          = cita.id || '';
-        $('#citaMascota').value     = cita.mascota_id || '';
+        setMascota(cita.mascota_id);
         $('#citaVeterinario').value = cita.veterinario_id || '';
         $('#citaSede').value        = cita.sede_id || '';
         $('#citaFecha').value       = cita.fecha || '';
@@ -1352,11 +1369,79 @@
             });
         });
 
+        // Select2 con búsqueda para las mascotas (busca por mascota o por propietario)
+        if (window.jQuery && window.jQuery.fn.select2 && $('#citaMascota')) {
+            window.jQuery('#citaMascota').select2({
+                theme: 'bootstrap4',
+                width: '100%',
+                dropdownParent: window.jQuery('#modalNuevaCita'),   // necesario dentro de un modal
+                placeholder: 'Busca una mascota o propietario...',
+                allowClear: true,
+                minimumInputLength: 1,   // la lista no se despliega al hacer clic: solo muestra coincidencias al escribir
+                language: {
+                    inputTooShort: () => 'Escribe el nombre de la mascota o del propietario…',
+                    noResults: () => 'Sin resultados',
+                    searching: () => 'Buscando…',
+                },
+            });
+
+            // Al abrir el Select2, el cursor queda listo en el buscador (Select2 4.1 ya no lo hace solo)
+            window.jQuery('#citaMascota').on('select2:open', function () {
+                setTimeout(function () {
+                    const buscador = document.querySelector('.select2-container--open .select2-search__field');
+                    if (buscador) buscador.focus();
+                }, 0);
+            });
+        } else {
+            console.warn('Select2 no está cargado; se usa el select normal.');
+        }
+
+        // Al cambiar la hora de inicio, la hora fin pasa a inicio + 30 min
+        // (en una cita existente solo si la fin quedó vacía o antes del inicio)
+        $('#citaHoraInicio')?.addEventListener('change', function () {
+            if (!this.value) return;
+            const fin = $('#citaHoraFin');
+            const editando = !!$('#citaId').value;
+            if (editando && fin.value && fin.value > this.value) return;
+
+            const [h, m] = this.value.split(':').map(Number);
+            const base = new Date();
+            base.setHours(h, m, 0, 0);
+            fin.value = horaMas(30, base);
+        });
+
         // Limpiar errores al cerrar el modal
         window.jQuery('#modalNuevaCita').on('hidden.bs.modal', function () {
             $('#erroresNuevaCita').innerHTML = '';
         });
     });
+
+    // ============================================================
+    // HORAS AUTOMÁTICAS: inicio = ahora (o la hora pulsada), fin = inicio + 30 min
+    // ============================================================
+    function horaMas(minutos, base) {
+        const d = new Date(base);
+        d.setMinutes(d.getMinutes() + minutos);
+        // Un campo time no distingue días: si pasa de medianoche se deja en 23:59
+        if (d.getDate() !== base.getDate()) return '23:59';
+        return horaHM(d);
+    }
+
+    function horasAutomaticas(horaInicio) {
+        const inicio = $('#citaHoraInicio');
+        const fin    = $('#citaHoraFin');
+        if (!inicio || !fin) return;
+
+        const base = new Date();
+        if (horaInicio) {
+            const [h, m] = horaInicio.split(':').map(Number);
+            base.setHours(h, m, 0, 0);
+        }
+
+        inicio.value = horaHM(base);
+        fin.value    = horaMas(30, base);
+    }
+
 })();
 
 </script>

@@ -19,8 +19,13 @@ class Venta extends Model
         'subtotal',
         'iva',
         'descuento',
+         'referencia_pago', 'detalle_pago',
+         'monto_efectivo',
+         'monto_otro',
+         'cambio',
         'metodo_pago',
         'estado',
+        'consecutivo',
         'observaciones',
     ];
 

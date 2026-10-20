@@ -51,6 +51,7 @@
                                     <th>Tipo</th>
                                     <th>Fecha Aplicación</th>
                                     <th>Veterinario</th>
+                                    <th>Próxima dosis</th>
                                     <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -251,14 +252,15 @@ $(document).ready(function() {
         serverSide: true,
         ajax: "{{ route('desparasitaciones.datatable') }}",
         columns: [
-            { data: 'id', name: 'id', className: 'text-center', width: '50px' },
-            { data: 'mascota_nombre', name: 'mascota.nombre' },
-            { data: 'cliente_nombre', name: 'mascota.cliente.nombres' },
-            { data: 'nombre', name: 'nombre' },
-            { data: 'tipo_label', name: 'tipo', className: 'text-center' },
-            { data: 'fecha_aplicacion_formato', name: 'fecha_aplicacion', className: 'text-center' },
-            { data: 'veterinario_nombre', name: 'veterinario.name' },
-            { data: 'estado_badge', name: 'estado', className: 'text-center' },
+            { data: 'id', name: 'a.id', className: 'text-center', width: '50px' },
+            { data: 'mascota_nombre', name: 'm.nombre' },
+            { data: 'cliente_nombre', name: 'cliente_nombre' },
+            { data: 'producto', name: 'p.nombre' },
+            { data: 'tipo_label', name: 'p.tipo', className: 'text-center' },
+            { data: 'fecha_aplicacion_formato', name: 'a.fecha_aplicacion', className: 'text-center' },
+            { data: 'veterinario_nombre', name: 'u.name' },
+            { data: 'fecha_proxima_formato', name: 'a.fecha_proxima', className: 'text-center' },
+            { data: 'estado_badge', name: 'a.estado', className: 'text-center' },
             { data: 'acciones', name: 'acciones', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[0, 'desc']],
@@ -351,42 +353,31 @@ function editarDesparasitacion() {
     }
 }
 
-function eliminarDesparasitacion() {
-    var id = $('#modal-detalle-desparasitacion').data('desparasitacion-id');
-    if (id) {
-        $('#modal-detalle-desparasitacion').modal('hide');
-        Swal.fire({
-            title: '¿Estás seguro?',
-            text: '¿Eliminar este registro de desparasitación?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/desparasitaciones/' + id,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Eliminado',
-                                text: response.message || 'Desparasitación eliminada correctamente',
-                                confirmButtonColor: '#28a745'
-                            });
-                            window.tablaDesparasitaciones.ajax.reload();
-                        }
-                    }
-                });
+function eliminarDesparasitacion(id) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: '¿Eliminar este registro de desparasitación? El stock vuelve al inventario.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/aplicaciones/desparasitacion/' + id,
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(response) {
+                Swal.fire({ icon: 'success', title: 'Eliminado', text: response.message || 'Registro eliminado', confirmButtonColor: '#28a745' });
+                window.tablaDesparasitaciones.ajax.reload(null, false);
+            },
+            error: function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el registro', confirmButtonColor: '#d33' });
             }
         });
-    }
+    });
 }
 </script>
 @stop

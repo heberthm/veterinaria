@@ -75,9 +75,9 @@ class CitaController extends Controller
             'cliente_id' => 'required|exists:clientes,id',
             'mascota_id' => 'required|exists:mascotas,id',
             'usuario_id' => 'required|exists:users,id',
-            'fecha' => 'required|date|after_or_equal:today',
-            'hora_inicio' => 'required',
-            'hora_fin' => 'required|after:hora_inicio',
+            'fecha'      =>  'required|date|after_or_equal:today',
+            'hora_inicio' => 'required|date_format:H:i',
+            'hora_fin'    => 'required|date_format:H:i|after:hora_inicio',   // ← clave
             'tipo' => 'required',
             'motivo' => 'required',
         ]);

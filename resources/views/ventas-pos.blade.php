@@ -142,7 +142,7 @@
            <div class="row vc-iva-row">
                 <span class="vc-iva-label">
                     IVA
-                    <select id="selectIva" class="vc-select-iva">
+                    <select id="selectIva" class="vc-select-iva" autocomplete="off">
                         <option value="0">0%</option>
                         <option value="5">5%</option>
                         <option value="10">10%</option>
@@ -186,15 +186,17 @@
         {{-- 🔥 Cliente  --}}
         <div class="vc-field vc-pos-typeahead">
             <label>Cliente (Opcional)</label>
-            <div style="display:flex; gap:6px;">
-                <input type="text" id="buscarCliente" class="form-control" placeholder="Buscar cliente por nombre, documento o teléfono..." style="flex:1;">
-                <button type="button" class="vc-btn vc-btn-primary" id="btnNuevoCliente" 
+            <div class="vc-cli-row">
+                <div class="vc-cli-sel">
+                    <select id="buscarCliente" aria-label="Buscar cliente">
+                        <option value=""></option>
+                    </select>
+                </div>
+                <button type="button" class="vc-btn vc-btn-primary" id="btnNuevoCliente"
                         style="background:#2F6FED;color:#fff;padding:8px 12px;" title="Crear cliente nuevo">
                     <i class="fas fa-user-plus"></i>
                 </button>
             </div>
-            <input type="hidden" id="clienteIdSeleccionado">
-            <div class="vc-pos-typeahead-results" id="resultadosCliente"></div>
         </div>
 
 
@@ -645,6 +647,15 @@
 {{-- ===================== CSS embebido (sin depender de public/css) ===================== --}}
 @push('css')
 <style>
+    /* Selector de clientes (Select2) */
+    .vc-cli-row { display: flex; gap: 6px; align-items: stretch; }
+    .vc-cli-sel { flex: 1; min-width: 0; }
+    .vc-cli-sel .select2-container { width: 100% !important; }
+    .vc-cli-sel .select2-container--bootstrap4 .select2-selection--single { height: 38px !important; }
+    .vc-cli-sel .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px; font-size: 13px; }
+    .vc-cli-sel .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 36px; }
+    .select2-dropdown.vc-cli-dd { font-size: 13px; z-index: 1060; }
+
     :root {
         --vc-blue: #2F6FED; --vc-blue-soft: #E8F0FE;
         --vc-green: #16A34A; --vc-green-soft: #E7F8ED;
@@ -1109,6 +1120,102 @@
 {{-- ===================== JS embebido (sin depender de public/js) ===================== --}}
 @push('js')
 <script>
+/* Select2 de clientes — bloque independiente (no depende del resto del POS) */
+(function () {
+    function log(m, e) { (e ? console.error : console.log)('[POS] ' + m, e || ''); }
+
+    function cargarCss(href) {
+        if (document.querySelector('link[href="' + href + '"]')) return;
+        var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href;
+        document.head.appendChild(l);
+    }
+
+    function esperarJQuery(cb, n) {
+        n = n || 0;
+        if (window.jQuery) return cb(window.jQuery);
+        if (n > 200) return log('jQuery no está disponible', true);
+        setTimeout(function () { esperarJQuery(cb, n + 1); }, 50);
+    }
+
+    function conSelect2(jq, cb) {
+        if (jq.fn.select2) return cb();
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+        s.onload = cb;
+        s.onerror = function () { log('No se pudo cargar select2.min.js', true); };
+        document.head.appendChild(s);
+    }
+
+    function textoCliente(r) {
+        if (r.texto) return r.texto;
+        if (r.text) return r.text;
+        var nom = ((r.nombres || '') + ' ' + (r.apellidos || '')).trim();
+        return r.numero_documento ? nom + ' - ' + r.numero_documento : nom;
+    }
+
+    function montar(jq) {
+        var $sel = jq('#buscarCliente');
+        if (!$sel.length) return log('No existe #buscarCliente', true);
+        if ($sel.hasClass('select2-hidden-accessible')) return;
+
+        try {
+            $sel.select2({
+                theme: 'bootstrap4',
+                width: '100%',
+                placeholder: 'Buscar cliente por nombre, documento o teléfono…',
+                allowClear: true,
+                minimumInputLength: 2,
+                language: {
+                    inputTooShort: function () { return 'Escribe al menos 2 caracteres…'; },
+                    searching: function () { return 'Buscando…'; },
+                    noResults: function () { return 'Sin resultados'; },
+                    errorLoading: function () { return 'No se pudo cargar la búsqueda'; }
+                },
+                ajax: {
+                    url: "{{ route('clientes.buscar') }}",
+                    dataType: 'json',
+                    delay: 300,
+                    data: function (p) { return { q: (p.term || '').trim() }; },
+                    processResults: function (data) {
+                        var lista = Array.isArray(data) ? data : (data.data || data.results || []);
+                        window.posClientes = window.posClientes || {};
+                        return { results: lista.map(function (r) {
+                            window.posClientes[r.id] = r;
+                            return { id: r.id, text: textoCliente(r) };
+                        }) };
+                    }
+                }
+            });
+        } catch (e) { return log('Error al iniciar Select2', e); }
+
+        $sel.on('select2:open', function () {
+            var dd = document.querySelector('.select2-container--open .select2-dropdown'); if (dd) dd.classList.add('vc-cli-dd');
+            setTimeout(function () {
+                var b = document.querySelector('.select2-container--open .select2-search__field');
+                if (b) b.focus();
+            }, 0);
+        });
+
+        jq(document).on('click', '#btnNuevoCliente', function () {
+            jq('#erroresNuevoCliente').html('');
+            var f = document.getElementById('formNuevoCliente'); if (f) f.reset();
+            jq('#modalNuevoCliente').modal('show');
+        });
+
+        log('Select2 de clientes listo');
+    }
+
+    function iniciar() {
+        cargarCss('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css');
+        cargarCss('https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css');
+        esperarJQuery(function (jq) { conSelect2(jq, function () { montar(window.jQuery); }); });
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+    else iniciar();
+})();
+</script>
+<script>
 (function () {
     'use strict';
 
@@ -1313,47 +1420,41 @@
     }
 
     // ============================================================
-    // 🔥 TYPEAHEAD
+    // 🔥 SELECT2 DE CLIENTES
     // ============================================================
-    function inicializarTypeahead(inputSel, resultsSel, url, hiddenSel, onSelect) {
-        const input = $(inputSel), results = $(resultsSel);
-        let timeoutId = null;
+    function textoCliente(r) {
+        if (r.texto) return r.texto;
+        if (r.text) return r.text;
+        const nom = `${r.nombres || ''} ${r.apellidos || ''}`.trim();
+        return r.numero_documento ? `${nom} - ${r.numero_documento}` : nom;
+    }
 
-        input?.addEventListener('input', () => {
-            clearTimeout(timeoutId);
-            const termino = input.value.trim();
-            $(hiddenSel).value = '';
-            if (termino.length < 2) { results.style.display = 'none'; return; }
+    // El Select2 se crea en el bloque independiente de arriba (posClienteSelect2);
+    // aquí solo se sincroniza el cliente elegido con la venta.
+    function inicializarSelectCliente() {
+        const jq = window.jQuery;
+        if (!jq) return;
+        jq(document).on('change', '#buscarCliente', function () { clienteId = jq(this).val() || null; });
+    }
 
-            timeoutId = setTimeout(() => {
-                let fetchUrl = `${url}?q=${encodeURIComponent(termino)}`;
-                if (hiddenSel === '#mascotaIdSeleccionada' && clienteId) fetchUrl += `&cliente_id=${clienteId}`;
+    function limpiarCliente() {
+        clienteId = null;
+        const jq = window.jQuery;
+        if (jq && jq.fn.select2) jq('#buscarCliente').val(null).trigger('change');
+    }
 
-                fetch(fetchUrl).then((r) => r.json()).then((data) => {
-                    if (data.length === 0) { results.style.display = 'none'; return; }
-                    results.innerHTML = data.map((r) => `<div data-id="${r.id}" data-texto="${r.texto}">${r.texto}</div>`).join('');
-                    results.style.display = 'block';
-                    results.querySelectorAll('div').forEach((el) => {
-                        el.addEventListener('click', () => {
-                            input.value = el.dataset.texto;
-                            $(hiddenSel).value = el.dataset.id;
-                            results.style.display = 'none';
-                            onSelect(el.dataset.id);
-                        });
-                    });
-                });
-            }, 300);
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!input?.contains(e.target) && !results?.contains(e.target)) results.style.display = 'none';
-        });
-        // Abrir modal nuevo cliente
-        document.querySelector('#btnNuevoCliente')?.addEventListener('click', () => {
-            document.querySelector('#erroresNuevoCliente').innerHTML = '';
-            document.querySelector('#formNuevoCliente').reset();
-            if (window.jQuery) window.jQuery('#modalNuevoCliente').modal('show');
-        });
+    // Nombre y cédula por separado (la búsqueda los guarda en window.posClientes)
+    function datosClienteSeleccionado() {
+        const jq = window.jQuery;
+        const id = clienteId;
+        const guardado = (window.posClientes || {})[id];
+        if (guardado && (guardado.nombres || guardado.numero_documento)) return guardado;
+        // Respaldo: el texto del select tiene la forma "Nombre Apellido - Cédula"
+        const texto = ((jq ? jq('#buscarCliente').find('option:selected').text() : '') || '').trim();
+        const k = texto.lastIndexOf(' - ');
+        return k > -1
+            ? { nombres: texto.slice(0, k).trim(), apellidos: '', numero_documento: texto.slice(k + 3).trim() }
+            : { nombres: texto, apellidos: '', numero_documento: '' };
     }
 
     // ============================================================
@@ -1529,6 +1630,20 @@
         });
     }
 
+    // Una venta cobrada se muestra como PAGADA (en BD queda "completada"); solo "anulada" se distingue
+    function estadoVenta(venta) {
+        return String(venta.estado || '').toLowerCase() === 'anulada' ? 'ANULADA' : 'PAGADA';
+    }
+
+    // La venta guardada trae iva_valor / descuento_valor; la vista previa trae iva / descuento
+    const ivaVenta = (venta) => venta.iva ?? venta.iva_valor ?? 0;
+    const descuentoVenta = (venta) => venta.descuento ?? venta.descuento_valor ?? 0;
+
+    function nombreVendedor(venta) {
+        const u = venta.usuario || {};
+        return (u.name || u.nombre || '').trim();
+    }
+
     function nombreCliente(venta) {
         if (!venta.cliente) return 'Consumidor final';
         return `${venta.cliente.nombres || ''} ${venta.cliente.apellidos || ''}`.trim() || 'Consumidor final';
@@ -1537,11 +1652,11 @@
     function itemsVenta(venta) {
         return (venta.detalles || []).map((d) => {
             const nombre = d.nombre_producto || d.nombre || d.producto?.nombre || 'Producto';
-            const cant   = Number(d.cantidad || 0);
+            // Acepta ventas guardadas (cantidad, precio_unitario, subtotal) y la vista previa (cant, precio, sub)
+            const cant   = Number(d.cantidad ?? d.cant ?? 0);
             const precio = Number(d.precio_unitario ?? d.precio ?? 0);
-            const iva    = Number(d.iva_porcentaje ?? d.iva ?? 0);
-            const sub    = Number(d.subtotal ?? (cant * precio));
-            return { nombre, cant, precio, iva, sub };
+            const sub    = Number(d.subtotal ?? d.sub ?? (cant * precio));
+            return { nombre, cant, precio, sub };
         });
     }
 
@@ -1586,9 +1701,9 @@ function htmlTicket(venta) {
             <div class="tk-line"></div>
 
             <div class="tk-small">
-                <div><strong>Cliente:</strong> ${nombreCliente(venta)}</div>
-                ${venta.cliente?.numero_documento ? `<div><strong>Doc:</strong> ${venta.cliente.numero_documento}</div>` : ''}
-                ${venta.usuario ? `<div><strong>Atendió:</strong> ${venta.usuario.name || venta.usuario.nombre || ''}</div>` : ''}
+                <div><strong>Nombre:</strong> ${nombreCliente(venta)}</div>
+                ${venta.cliente?.numero_documento ? `<div><strong>Cédula:</strong> ${venta.cliente.numero_documento}</div>` : ''}
+                ${nombreVendedor(venta) ? `<div><strong>Vendedor:</strong> ${nombreVendedor(venta)}</div>` : ''}
             </div>
             <div class="tk-line"></div>
 
@@ -1596,8 +1711,8 @@ function htmlTicket(venta) {
             <div class="tk-line"></div>
 
             <div class="tk-row"><span>Subtotal</span><span>${money(venta.subtotal)}</span></div>
-            <div class="tk-row"><span>IVA</span><span>${money(venta.iva)}</span></div>
-            ${Number(venta.descuento) ? `<div class="tk-row"><span>Descuento</span><span>-${money(venta.descuento)}</span></div>` : ''}
+            <div class="tk-row"><span>IVA</span><span>${money(ivaVenta(venta))}</span></div>
+            ${Number(descuentoVenta(venta)) ? `<div class="tk-row"><span>Descuento</span><span>-${money(descuentoVenta(venta))}</span></div>` : ''}
             <div class="tk-line"></div>
             <div class="tk-row tk-total"><span>TOTAL</span><span>${money(venta.total)}</span></div>
             <div class="tk-line"></div>
@@ -1607,7 +1722,7 @@ function htmlTicket(venta) {
                 ${venta.metodo_pago === 'efectivo' && venta.monto_efectivo ? `<div><strong>Recibido:</strong> ${money(venta.monto_efectivo)}</div>` : ''}
                 ${venta.cambio ? `<div><strong>Cambio:</strong> ${money(venta.cambio)}</div>` : ''}
                 ${venta.referencia_pago ? `<div><strong>Ref:</strong> ${venta.referencia_pago}</div>` : ''}
-                <div><strong>Estado:</strong> ${(venta.estado || 'pagada').toUpperCase()}</div>
+                <div><strong>Estado:</strong> ${estadoVenta(venta)}</div>
             </div>
 
             <div class="tk-line"></div>
@@ -1624,9 +1739,8 @@ function htmlTicket(venta) {
     const items = itemsVenta(venta).map((it) => `
         <tr>
             <td>${it.nombre}</td>
-            <td class="fc-num">${it.cant}</td>
+            <td class="fc-center">${it.cant}</td>
             <td class="fc-num">${money(it.precio)}</td>
-            <td class="fc-num">${it.iva}%</td>
             <td class="fc-num">${money(it.sub)}</td>
         </tr>
     `).join('');
@@ -1660,8 +1774,11 @@ function htmlTicket(venta) {
                 border: 1px solid #ccc; padding: 8px 10px;
                 text-align: left; font-size: 11px;
             }
-            .fc-wrap .fc-tabla th { background: #0E1B30; color: #fff; font-weight: 700; }
-            .fc-wrap .fc-num { text-align: right; }
+            .fc-wrap .fc-tabla th { background: #0E1B30; color: #fff; font-weight: 700; text-align: center; }
+            .fc-wrap .fc-tabla td.fc-num { text-align: right; }
+            .fc-wrap .fc-tabla td.fc-center { text-align: center; }
+            .fc-wrap .fc-totales .fc-num { text-align: right; }
+            .fc-wrap .fc-info-col .fc-lbl { font-weight: 700; }
             .fc-wrap .fc-totales { display: flex; justify-content: flex-end; }
             .fc-wrap .fc-totales table { min-width: 260px; font-size: 12px; }
             .fc-wrap .fc-totales td { padding: 5px 10px; }
@@ -1687,22 +1804,20 @@ function htmlTicket(venta) {
                     <h2>FACTURA</h2>
                     <p><strong>No.</strong> ${num}</p>
                     <p><strong>Fecha:</strong> ${fechaVenta(venta)}</p>
-                    <p><strong>Estado:</strong> ${(venta.estado || 'pagada').toUpperCase()}</p>
+                    <p><strong>Estado:</strong> ${estadoVenta(venta)}</p>
                 </div>
             </div>
 
             <div class="fc-info">
                 <div class="fc-info-col">
                     <strong>Cliente</strong>
-                    <p>${venta.cliente ? nombreCliente(venta) : 'Consumidor final'}</p>
-                    ${venta.cliente?.numero_documento ? `<p>Doc: ${venta.cliente.numero_documento}</p>` : ''}
-                    ${venta.cliente?.telefono ? `<p>Tel: ${venta.cliente.telefono}</p>` : ''}
+                    <p><span class="fc-lbl">Nombre:</span> ${venta.cliente ? nombreCliente(venta) : 'Consumidor final'}</p>
+                    ${venta.cliente?.numero_documento ? `<p><span class="fc-lbl">Cédula:</span> ${venta.cliente.numero_documento}</p>` : ''}
+                    ${(venta.cliente?.telefono || venta.cliente?.celular) ? `<p><span class="fc-lbl">Tel:</span> ${venta.cliente.telefono || venta.cliente.celular}</p>` : ''}
                 </div>
                 <div class="fc-info-col">
-                    <strong>Mascota</strong>
-                    ${venta.mascota
-                        ? `<p>${venta.mascota.nombre}</p><p>${venta.mascota.especie || ''} ${venta.mascota.raza || ''}</p>`
-                        : '<p>—</p>'}
+                    <strong>Vendedor</strong>
+                    <p><span class="fc-lbl">Nombre:</span> ${nombreVendedor(venta) || '—'}</p>
                 </div>
                 <div class="fc-info-col">
                     <strong>Pago</strong>
@@ -1716,9 +1831,8 @@ function htmlTicket(venta) {
                 <thead>
                     <tr>
                         <th>Descripción</th>
-                        <th class="fc-num">Cant.</th>
+                        <th class="fc-center">Cant.</th>
                         <th class="fc-num">Vr. Unit.</th>
-                        <th class="fc-num">IVA</th>
                         <th class="fc-num">Subtotal</th>
                     </tr>
                 </thead>
@@ -1728,8 +1842,8 @@ function htmlTicket(venta) {
             <div class="fc-totales">
                 <table>
                     <tr><td>Subtotal</td><td class="fc-num">${money(venta.subtotal)}</td></tr>
-                    <tr><td>IVA</td><td class="fc-num">${money(venta.iva)}</td></tr>
-                    ${Number(venta.descuento) ? `<tr><td>Descuento</td><td class="fc-num">-${money(venta.descuento)}</td></tr>` : ''}
+                    <tr><td>Valor IVA</td><td class="fc-num">${money(ivaVenta(venta))}</td></tr>
+                    ${Number(descuentoVenta(venta)) ? `<tr><td>Descuento</td><td class="fc-num">-${money(descuentoVenta(venta))}</td></tr>` : ''}
                     <tr class="fc-total"><td>TOTAL</td><td class="fc-num">${money(venta.total)}</td></tr>
                 </table>
             </div>
@@ -1869,17 +1983,18 @@ function htmlTicket(venta) {
         const { ivaPct } = calcularTotales();
 
         const payload = {
-            items: Object.values(carrito).map((i) => ({
-                producto_id: i.id,
+            // Nombres que valida VentaController@store
+            productos: Object.values(carrito).map((i) => ({
+                id: i.id,
                 cantidad: i.cantidad,
-                precio_unitario: i.precio,
-                iva_porcentaje: ivaPct,
-                subtotal: i.precio * i.cantidad,
+                precio: i.precio,
             })),
+            iva_porcentaje: ivaPct,
             cliente_id: clienteId || null,
+            mascota_id: mascotaId || null,
             descuento_porcentaje: parseFloat(document.querySelector('#inputDescuento').value || 0) || 0,
             metodo_pago: metodoPago,
-            observacion: null,
+            observaciones: null,
             referencia_pago: datosPago?.referencia_pago || null,
             detalle_pago: datosPago?.detalle_pago || null,
             monto_efectivo: datosPago?.monto_efectivo ?? null,
@@ -1900,7 +2015,10 @@ function htmlTicket(venta) {
         })
             .then(async (res) => {
                 const data = await res.json();
-                if (!res.ok || !data.success) throw new Error(data.message || 'No se pudo registrar la venta.');
+                if (!res.ok || !data.success) {
+                    const detalle = data.errors ? Object.values(data.errors).flat().join('\n') : '';
+                    throw new Error(data.message || detalle || 'No se pudo registrar la venta.');
+                }
                 return data;
             })
             .then((data) => {
@@ -1959,12 +2077,9 @@ function htmlTicket(venta) {
             mascotaId = null;
             renderCarrito();
 
-            const $cli = document.querySelector('#buscarCliente');
+            limpiarCliente();
             const $desc = document.querySelector('#inputDescuento');
-            const $cliId = document.querySelector('#clienteIdSeleccionado');
-            if ($cli) $cli.value = '';
             if ($desc) $desc.value = 0;
-            if ($cliId) $cliId.value = '';
 
             Swal.fire({ icon: 'success', title: 'Venta cancelada', timer: 1400, showConfirmButton: false });
         });
@@ -1987,14 +2102,16 @@ function htmlTicket(venta) {
 
         ventaImpresion = {
             id: 'PREVENTA',
-            consecutivo: 'PREVENTA',
+            // Consecutivo que tendrá la factura al cobrar (mismo formato que numero_factura: V-000001)
+            consecutivo: @json($prefijoFactura ?? 'V-') + (document.querySelector('#consecutivoVenta')?.textContent.trim() || '000001'),
             fecha: new Date().toISOString(),
             subtotal, iva, descuento: descuentoValor, total,
             metodo_pago: metodoPago,
             estado: 'pendiente',
             observaciones: '',
             detalles: items,
-            cliente: clienteId ? { nombres: document.querySelector('#buscarCliente')?.value || '', apellidos: '' } : null,
+            usuario: { name: @json(optional(auth()->user())->name ?? '') },
+            cliente: clienteId ? datosClienteSeleccionado() : null,
             mascota: null,
         };
 
@@ -2028,6 +2145,9 @@ function htmlTicket(venta) {
     // 🔥 INIT
     // ============================================================
     document.addEventListener('DOMContentLoaded', function () {
+        const selIva = document.querySelector('#selectIva');
+        if (selIva) selIva.value = '19';   // IVA por defecto 19 %
+
         $$('.vc-product-card').forEach((card) => card.addEventListener('click', (e) => { e.preventDefault(); agregarAlCarrito(card); }));
 
         $$('.vc-pos-tabs button').forEach((btn) => btn.addEventListener('click', () => {
@@ -2064,7 +2184,7 @@ function htmlTicket(venta) {
             tipoComprobante = e.target.value;
         });
 
-        inicializarTypeahead('#buscarCliente', '#resultadosCliente', cfg.rutaBuscarClientes, '#clienteIdSeleccionado', (id) => { clienteId = id; });
+        inicializarSelectCliente();
 
         // Vaciar carrito (delegación)
         document.addEventListener('click', function (e) {
@@ -2166,9 +2286,12 @@ window.guardarNuevoCliente = function () {
         
         // Autoseleccionar el cliente recién creado
         const c = data.cliente;
-        document.querySelector('#buscarCliente').value = `${c.nombres} ${c.apellidos} - ${c.numero_documento}`;
-        document.querySelector('#clienteIdSeleccionado').value = c.id;
-        clienteId = c.id;
+        window.posClientes = window.posClientes || {};
+        window.posClientes[c.id] = c;
+        const textoNuevo = `${c.nombres} ${c.apellidos}`.trim() + (c.numero_documento ? ` - ${c.numero_documento}` : '');
+        window.jQuery('#buscarCliente')
+            .append(new Option(textoNuevo, c.id, true, true))
+            .trigger('change');
 
         // Limpiar formulario
         form.reset();

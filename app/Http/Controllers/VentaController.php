@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 
 class VentaController extends Controller
@@ -79,13 +80,8 @@ class VentaController extends Controller
         // ============================================================
         // CONSECUTIVO
         // ============================================================
-        $ultimaVenta = Venta::where('tenant_id', $tenantId)
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $siguienteConsecutivo = $ultimaVenta 
-            ? str_pad(intval(substr($ultimaVenta->numero_factura ?? 0, -6)) + 1, 6, '0', STR_PAD_LEFT)
-            : '000001';
+        // Mismo cálculo que usa store() al guardar la venta
+        $siguienteConsecutivo = $this->siguienteConsecutivo($tenantId);
 
         return view('ventas-pos', compact(
             'cajaActual',
@@ -94,7 +90,69 @@ class VentaController extends Controller
             'paquetes',
             'categorias',
             'siguienteConsecutivo'
-        ));
+        ))->with('prefijoFactura', $this->prefijoFactura());
+    }
+
+    /**
+     * Deja solo las claves que existen como columnas en la tabla del modelo.
+     * Evita errores "Unknown column" si la tabla no tiene algún campo opcional.
+     */
+    private function soloColumnas($modelo, array $datos): array
+    {
+        $tabla = $modelo->getTable();
+
+        if (!Schema::hasTable($tabla)) {
+            throw new \RuntimeException(
+                "La tabla '{$tabla}' no existe. Revisa la propiedad \$table del modelo " . get_class($modelo) . '.'
+            );
+        }
+
+        return array_intersect_key($datos, array_flip(Schema::getColumnListing($tabla)));
+    }
+
+    /**
+     * Columna de la tabla ventas donde se guarda el número de factura.
+     * Soporta "numero_factura" o "consecutivo" según tenga la base de datos.
+     */
+    private function columnaFactura(): ?string
+    {
+        $tabla = (new Venta)->getTable();
+        foreach (['numero_factura', 'consecutivo'] as $col) {
+            if (Schema::hasColumn($tabla, $col)) {
+                return $col;
+            }
+        }
+        return null;
+    }
+
+    /** Prefijo del número: "V-000012" en numero_factura, "POS-000012" en consecutivo. */
+    private function prefijoFactura(): string
+    {
+        return $this->columnaFactura() === 'numero_factura' ? 'V-' : 'POS-';
+    }
+
+    /**
+     * Siguiente consecutivo de factura (solo los 6 dígitos, p. ej. "000012").
+     * Usa el mayor número ya usado en el tenant (incluye soft deletes), no el conteo.
+     * Con $bloquear = true se usa dentro de una transacción (FOR UPDATE).
+     */
+    private function siguienteConsecutivo($tenantId, bool $bloquear = false): string
+    {
+        $tabla = (new Venta)->getTable();
+        $col   = $this->columnaFactura();
+
+        if (!$col) {
+            return str_pad(DB::table($tabla)->where('tenant_id', $tenantId)->count() + 1, 6, '0', STR_PAD_LEFT);
+        }
+
+        $consulta = DB::table($tabla)->where('tenant_id', $tenantId);
+        if ($bloquear) {
+            $consulta->lockForUpdate();
+        }
+
+        $ultimo = (int) $consulta->max(DB::raw("CAST(SUBSTRING_INDEX(`{$col}`, '-', -1) AS UNSIGNED)"));
+
+        return str_pad($ultimo + 1, 6, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -114,6 +172,7 @@ class VentaController extends Controller
             'mascota_id' => 'nullable|exists:mascotas,id',
             'metodo_pago' => 'nullable|string|max:50',
             'descuento_porcentaje' => 'nullable|numeric|min:0|max:100',
+            'iva_porcentaje' => 'nullable|numeric|min:0|max:100',
             'observaciones' => 'nullable|string|max:500',
 
             // 🔥 CAMPOS DE PAGO
@@ -153,11 +212,12 @@ class VentaController extends Controller
         $subtotal = 0;
         $ivaTotal = 0;
 
+        $ivaPct = (float) ($request->iva_porcentaje ?? 19);
+
         foreach ($request->productos as $item) {
             $subtotalItem = $item['precio'] * $item['cantidad'];
             $subtotal += $subtotalItem;
-            $ivaItem = $subtotalItem * 0.19;
-            $ivaTotal += $ivaItem;
+            $ivaTotal += $subtotalItem * ($ivaPct / 100);
         }
 
         $descuentoPorcentaje = $request->descuento_porcentaje ?? 0;
@@ -170,28 +230,36 @@ class VentaController extends Controller
             // ============================================================
             // CREAR VENTA
             // ============================================================
-            $venta = Venta::create([
+            $consecutivo = $this->prefijoFactura() . $this->siguienteConsecutivo($tenantId, true);
+
+            // Se envían los nombres de la migración (usurio_id, descuento_valor, iva_valor, observacion...)
+            // y los alternos; soloColumnas() conserva únicamente los que existen en la tabla.
+            $venta = Venta::create($this->soloColumnas(new Venta, [
                 'tenant_id' => $tenantId,
+                'caja_id' => $caja->id,
+                ($this->columnaFactura() ?? 'consecutivo') => $consecutivo,
                 'cliente_id' => $request->cliente_id,
                 'mascota_id' => $request->mascota_id,
+                'usurio_id' => auth()->id(),   // así se llama la columna en la migración
                 'usuario_id' => auth()->id(),
-                'numero_factura' => 'V-' . str_pad(Venta::where('tenant_id', $tenantId)->count() + 1, 6, '0', STR_PAD_LEFT),
-                'fecha' => now(),
                 'subtotal' => $subtotal,
-                'descuento' => $descuento,
-                'iva' => $ivaTotal,
+                'descuento_porcentaje' => $descuentoPorcentaje,
+                'descuento_valor' => $descuento,
+                'iva_valor' => $ivaTotal,
                 'total' => $total,
                 'metodo_pago' => $request->metodo_pago ?? 'efectivo',
-                'estado' => 'completada',
-                'observaciones' => $request->observaciones,
+                'estado' => 'pagada',
+                'observacion' => $request->observaciones,
 
-                // 🔥 CAMPOS DE PAGO NUEVOS
+                // Solo se guardan si la tabla tiene estas columnas
                 'referencia_pago' => $request->referencia_pago,
-                'detalle_pago' => $request->detalle_pago,
+                'detalle_pago' => (is_array($request->detalle_pago) && !(new Venta)->hasCast('detalle_pago'))
+                    ? json_encode($request->detalle_pago)
+                    : $request->detalle_pago,
                 'monto_efectivo' => $request->monto_efectivo,
                 'monto_otro' => $request->monto_otro,
                 'cambio' => $request->cambio,
-            ]);
+            ]));
 
             // ============================================================
             // CREAR DETALLES Y ACTUALIZAR STOCK
@@ -204,17 +272,19 @@ class VentaController extends Controller
                 }
 
                 $subtotalItem = $item['precio'] * $item['cantidad'];
-                $ivaItem = $subtotalItem * 0.19;
+                $ivaItem = $subtotalItem * ($ivaPct / 100);
 
-                VentaDetalle::create([
+                VentaDetalle::create($this->soloColumnas(new VentaDetalle, [
                     'venta_id' => $venta->id,
                     'producto_id' => $producto->id,
+                    'nombre_producto' => $producto->nombre,
                     'cantidad' => $item['cantidad'],
                     'precio_unitario' => $item['precio'],
+                    'iva_porcentaje' => $ivaPct,
                     'subtotal' => $subtotalItem,
                     'iva' => $ivaItem,
                     'total' => $subtotalItem + $ivaItem,
-                ]);
+                ]));
 
                 // Descontar stock solo si es producto
                 if ($producto->tipo === 'producto' || $producto->tipo === null) {
@@ -240,7 +310,7 @@ class VentaController extends Controller
                 ->orderBy('fecha_apertura', 'desc')
                 ->first();
 
-            CajaMovimiento::create([
+            CajaMovimiento::create($this->soloColumnas(new CajaMovimiento, [
                 'caja_id' => $caja->id,
                 'caja_apertura_id' => $apertura ? $apertura->id : null,
                 'usuario_id' => auth()->id(),
@@ -252,8 +322,8 @@ class VentaController extends Controller
                 'saldo_nuevo' => $saldoNuevo,
                 'metodo_pago' => $request->metodo_pago ?? 'efectivo',
                 'referencia' => $request->referencia_pago,
-                'descripcion' => 'Venta #' . $venta->numero_factura,
-            ]);
+                'descripcion' => 'Venta #' . ($venta->numero_factura ?? $venta->consecutivo ?? $venta->id),
+            ]));
 
             DB::commit();
 
@@ -261,7 +331,7 @@ class VentaController extends Controller
                 'success' => true,
                 'message' => 'Venta registrada exitosamente',
                 'venta' => $venta->fresh(),
-                'numero' => $venta->numero_factura,
+                'numero' => $venta->numero_factura ?? $venta->consecutivo ?? null,
                 'total' => $total,
             ]);
 
@@ -351,7 +421,8 @@ class VentaController extends Controller
                 return $venta->usuario->name ?? 'N/A';
             })
             ->addColumn('fecha_formato', function($venta) {
-                return $venta->fecha ? $venta->fecha->format('d/m/Y H:i') : 'N/A';
+                $f = $venta->fecha ?? $venta->created_at;
+                return $f ? \Carbon\Carbon::parse($f)->format('d/m/Y H:i') : 'N/A';
             })
             ->addColumn('total_formateado', function($venta) {
                 return '$ ' . number_format($venta->total, 0, ',', '.');
@@ -373,6 +444,7 @@ class VentaController extends Controller
                 $estados = [
                     'pendiente' => 'warning',
                     'completada' => 'success',
+                    'pagada' => 'success',
                     'anulada' => 'danger',
                 ];
                 $color = $estados[$venta->estado] ?? 'secondary';
@@ -460,7 +532,7 @@ class VentaController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('ventas.pdf', compact('venta'))
             ->setPaper('letter');
 
-        $nombreArchivo = 'venta-' . $venta->numero_factura . '.pdf';
+        $nombreArchivo = 'venta-' . ($venta->numero_factura ?? $venta->consecutivo ?? $venta->id) . '.pdf';
 
         return $pdf->download($nombreArchivo);
     }

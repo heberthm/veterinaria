@@ -29,9 +29,10 @@ class Cita extends Model
     ];
 
     protected $casts = [
-        'fecha' => 'date',
+        'fecha'    => 'date',
+        'hora_inicio' => 'string',
+        'hora_fin'    => 'string',
     ];
-
     protected static function booted()
     {
         static::creating(function ($cita) {

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('titulo', 'Vacunación - VetFlow')´
+@section('titulo', 'Vacunación - VetFlow')
 
 @php
     // 🔥 SI LA VARIABLE NO EXISTE, CREAR UN ARRAY VACÍO
@@ -50,7 +50,7 @@
                                     <th>Vacuna</th>
                                     <th>Fecha Aplicación</th>
                                     <th>Veterinario</th>
-                                    <th>Vigente</th>
+                                    <th>Próxima dosis</th>
                                     <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -258,14 +258,14 @@ $(document).ready(function() {
         serverSide: true,
         ajax: "{{ route('vacunas.datatable') }}",
         columns: [
-            { data: 'id', name: 'id', className: 'text-center', width: '50px' },
-            { data: 'mascota_nombre', name: 'mascota.nombre' },
-            { data: 'cliente_nombre', name: 'mascota.cliente.nombres' },
-            { data: 'nombre', name: 'nombre' },
-            { data: 'fecha_aplicacion_formato', name: 'fecha_aplicacion', className: 'text-center' },
-            { data: 'veterinario_nombre', name: 'veterinario.name' },
-            { data: 'vigente', name: 'vigente', className: 'text-center' },
-            { data: 'estado_badge', name: 'estado', className: 'text-center' },
+            { data: 'id', name: 'a.id', className: 'text-center', width: '50px' },
+            { data: 'mascota_nombre', name: 'm.nombre' },
+            { data: 'cliente_nombre', name: 'cliente_nombre' },
+            { data: 'producto', name: 'p.nombre' },
+            { data: 'fecha_aplicacion_formato', name: 'a.fecha_aplicacion', className: 'text-center' },
+            { data: 'veterinario_nombre', name: 'u.name' },
+            { data: 'fecha_proxima_formato', name: 'a.fecha_proxima', className: 'text-center' },
+            { data: 'estado_badge', name: 'a.estado', className: 'text-center' },
             { data: 'acciones', name: 'acciones', orderable: false, searchable: false, className: 'text-center' }
         ],
         order: [[0, 'desc']],
@@ -379,42 +379,31 @@ function editarVacuna() {
     }
 }
 
-function eliminarVacuna() {
-    var id = $('#modal-detalle-vacuna').data('vacuna-id');
-    if (id) {
-        $('#modal-detalle-vacuna').modal('hide');
-        Swal.fire({
-            title: '¿Estás seguro?',
-            text: '¿Eliminar este registro de vacunación?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(function(result) {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: '/vacunas/' + id,
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Eliminado',
-                                text: response.message || 'Vacuna eliminada correctamente',
-                                confirmButtonColor: '#28a745'
-                            });
-                            window.tablaVacunas.ajax.reload();
-                        }
-                    }
-                });
+function eliminarVacuna(id) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: '¿Eliminar este registro de vacunación? El stock vuelve al inventario.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: '/aplicaciones/vacuna/' + id,
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(response) {
+                Swal.fire({ icon: 'success', title: 'Eliminado', text: response.message || 'Registro eliminado', confirmButtonColor: '#28a745' });
+                window.tablaVacunas.ajax.reload(null, false);
+            },
+            error: function() {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo eliminar el registro', confirmButtonColor: '#d33' });
             }
         });
-    }
+    });
 }
 </script>
 @stop

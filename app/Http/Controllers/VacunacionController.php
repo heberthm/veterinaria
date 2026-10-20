@@ -7,6 +7,9 @@ use App\Models\Mascota;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Carbon\Carbon;
 use Yajra\DataTables\Facades\DataTables;
 
 class VacunacionController extends Controller
@@ -41,54 +44,43 @@ class VacunacionController extends Controller
 
     public function datatable(Request $request)
     {
-        $vacunas = Vacuna::with(['mascota', 'mascota.cliente', 'veterinario'])
-            ->whereHas('mascota.cliente', function($q) {
-                $q->where('tenant_id', auth()->user()->tenant_id ?? null);
-            });
+        $tenantId = auth()->user()->tenant_id ?? null;
 
-        return DataTables::of($vacunas)
-            ->addColumn('mascota_nombre', function($vacuna) {
-                return $vacuna->mascota->nombre ?? 'N/A';
+        // Se consulta con joins directos (no depende de los nombres de las relaciones del modelo)
+        $consulta = DB::table('vacuna_aplicaciones as a')
+            ->join('mascotas as m', 'm.id', '=', 'a.mascota_id')
+            ->join('clientes as c', 'c.id', '=', 'm.cliente_id')
+            ->join('vacunas as p', 'p.id', '=', 'a.vacuna_id')
+            ->leftJoin('users as u', 'u.id', '=', 'a.usuario_id')
+            ->where('c.tenant_id', $tenantId)
+            ->select([
+                'a.id', 'a.fecha_aplicacion', 'a.fecha_proxima', 'a.lote', 'a.estado',
+                'm.nombre as mascota_nombre',
+                DB::raw("TRIM(CONCAT(c.nombres, ' ', COALESCE(c.apellidos, ''))) as cliente_nombre"),
+                'p.nombre as producto',
+                'u.name as veterinario_nombre',
+            ]);
+
+        // Si la tabla usa soft deletes, se ocultan los eliminados
+        if (Schema::hasColumn('vacuna_aplicaciones', 'deleted_at')) {
+            $consulta->whereNull('a.deleted_at');
+        }
+
+        $fecha = fn ($v) => $v ? Carbon::parse($v)->format('d/m/Y') : '—';
+
+        return DataTables::of($consulta)
+            ->editColumn('veterinario_nombre', fn ($r) => $r->veterinario_nombre ? 'Dr. ' . $r->veterinario_nombre : 'N/A')
+            ->addColumn('fecha_aplicacion_formato', fn ($r) => $fecha($r->fecha_aplicacion))
+            ->addColumn('fecha_proxima_formato', fn ($r) => $fecha($r->fecha_proxima))
+            ->addColumn('estado_badge', function ($r) {
+                $color = ['aplicada' => 'success', 'programada' => 'warning', 'cancelada' => 'secondary'][$r->estado] ?? 'secondary';
+                return '<span class="badge badge-' . $color . '">' . e(ucfirst((string) $r->estado)) . '</span>';
             })
-            ->addColumn('cliente_nombre', function($vacuna) {
-                return $vacuna->mascota->cliente->nombreCompleto() ?? 'N/A';
+            ->addColumn('acciones', function ($r) {
+                return '<button class="btn btn-danger btn-sm btn-accion" onclick="eliminarVacuna(' . (int) $r->id . ')" title="Eliminar"><i class="fas fa-trash"></i></button>';
             })
-            ->addColumn('veterinario_nombre', function($vacuna) {
-                return 'Dr. ' . ($vacuna->veterinario->name ?? 'N/A');
-            })
-            ->addColumn('fecha_aplicacion_formato', function($vacuna) {
-                return $vacuna->fecha_aplicacion->format('d/m/Y');
-            })
-            ->addColumn('estado_badge', function($vacuna) {
-                $estados = [
-                    'aplicada' => 'success',
-                    'pendiente' => 'warning',
-                    'vencida' => 'danger'
-                ];
-                return '<span class="badge badge-' . ($estados[$vacuna->estado] ?? 'secondary') . '">' 
-                    . Vacuna::ESTADOS[$vacuna->estado] . '</span>';
-            })
-            ->addColumn('vigente', function($vacuna) {
-                return $vacuna->estaVigente() 
-                    ? '<span class="badge badge-success">Vigente</span>' 
-                    : '<span class="badge badge-danger">No vigente</span>';
-            })
-            ->addColumn('acciones', function($vacuna) {
-                return '
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-primary btn-accion" onclick="verVacuna(' . $vacuna->id . ')" title="Ver detalle">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-warning btn-accion" onclick="editarVacuna(' . $vacuna->id . ')" title="Editar">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-danger btn-accion" onclick="eliminarVacuna(' . $vacuna->id . ')" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                ';
-            })
-            ->rawColumns(['estado_badge', 'vigente', 'acciones'])
+            ->filterColumn('cliente_nombre', fn ($q, $k) => $q->whereRaw("CONCAT(c.nombres, ' ', COALESCE(c.apellidos, '')) like ?", ["%{$k}%"]))
+            ->rawColumns(['estado_badge', 'acciones'])
             ->make(true);
     }
 

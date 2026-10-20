@@ -7,6 +7,7 @@ use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HistoriaClinicaController;
 use App\Http\Controllers\ExamenController;
+use App\Http\Controllers\RecetaController;
 use App\Http\Controllers\MascotaController;
 use App\Http\Controllers\AplicacionMascotaController;
 use App\Http\Controllers\PerfilController;
@@ -142,13 +143,15 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::get('/historias', [HistoriaClinicaController::class, 'index'])->name('historias');
     Route::get('/historias/datatable', [HistoriaClinicaController::class, 'datatable'])->name('historias.datatable');
     Route::get('/historias/crear', [HistoriaClinicaController::class, 'create'])->name('historias.crear');
-    Route::post('/historias', [HistoriaClinicaController::class, 'store'])->name('historias.store');
-    Route::get('/historias/{id}', [HistoriaClinicaController::class, 'show'])->name('historias.show');
+    Route::post('historias/{mascota?}', [HistoriaClinicaController::class, 'store'])->name('historias.store');
+    Route::get('historias/{mascota}', [HistoriaClinicaController::class, 'show'])->name('historias.show');
     Route::get('/historias/{id}/detalle', [HistoriaClinicaController::class, 'detalle'])->name('historias.detalle');
     Route::get('/historias/{id}/editar', [HistoriaClinicaController::class, 'edit'])->name('historias.editar');
-    Route::put('/historias/{id}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
+    Route::put('historias/{historia}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
     Route::delete('/historias/{id}', [HistoriaClinicaController::class, 'destroy'])->name('historias.destroy');
     Route::post('/historias/{id}/adjunto', [HistoriaClinicaController::class, 'uploadAttachment'])->name('historias.adjunto');
+    Route::put('/historias/consulta/{historia}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
+    Route::get('historias/{historia}/pdf', [HistoriaClinicaController::class, 'pdf'])->name('historias.pdf');
 
  /*
     |--------------------------------------------------------------------------
@@ -174,6 +177,19 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::put('/vacunas/{id}', [VacunacionController::class, 'update'])->name('vacunas.update');
     Route::delete('/vacunas/{id}', [VacunacionController::class, 'destroy'])->name('vacunas.destroy');
     Route::get('/vacunas/mascota/{mascotaId}', [VacunacionController::class, 'getByMascota'])->name('vacunas.mascota');
+
+     /*
+    |--------------------------------------------------------------------------
+    | RECETA MEDICA
+    |--------------------------------------------------------------------------
+    */
+
+    Route::post('recetas/{mascota}', [RecetaController::class, 'store'])->name('recetas.store');
+    Route::delete('/recetas/{receta}', [RecetaController::class, 'destroy'])->name('recetas.destroy');
+    Route::get('/recetas/{receta}', [RecetaController::class, 'show'])->name('recetas.show');
+    Route::put('/recetas/{receta}', [RecetaController::class, 'update'])->name('recetas.update');
+    Route::get('/recetas/{receta}/pdf', [RecetaController::class, 'pdf'])->name('recetas.pdf');
+    Route::get('recetas/{receta}/pdf-preview', [RecetaController::class, 'pdfPreview'])->name('recetas.pdf.preview');
 
     /*
     |--------------------------------------------------------------------------

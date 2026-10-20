@@ -7,14 +7,18 @@ use App\Models\Examen;
 use App\Models\HistoriaClinica;
 use App\Models\Mascota;
 use App\Models\VacunaAplicacion;
-use App\Models\Desparasitacion;
 use App\Models\Desparasitante;
 use App\Models\DesparasitacionAplicacion;
 use App\Models\Vacuna;
+use App\Models\Producto;
+use App\Models\Receta;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-
-
+use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class HistoriaClinicaController extends Controller
 {
@@ -41,23 +45,34 @@ class HistoriaClinicaController extends Controller
      */
     public function show($mascotaId)
     {
-        $request = request();
+        $request  = request();
+        $tenantId = auth()->user()->tenant_id ?? null;
 
-        $mascota = Mascota::with('cliente')->find($mascotaId);
+        $mascota = Mascota::with('cliente')
+            ->whereHas('cliente', fn ($q) => $q->where('tenant_id', $tenantId))
+            ->find($mascotaId);
 
         if (!$mascota) {
             return redirect()->route('mascotas')
                 ->with('error', 'La mascota no fue encontrada.');
         }
 
+        // Consultas
         $historias = $mascota->historiasClinicas()
             ->with(['veterinario', 'archivos', 'formulaMedica'])
             ->orderByDesc('fecha_consulta')
             ->get();
 
-        $historiaActual = $request->filled('consulta')
-            ? $historias->firstWhere('id', (int) $request->consulta)
-            : $historias->first();
+       $historiaActual = null;
+
+        if ($request->boolean('nueva')) {
+            // Formulario en blanco para registrar una consulta nueva
+            $historiaActual = null;
+        } elseif ($request->filled('consulta')) {
+            $historiaActual = $historias->firstWhere('id', (int) $request->consulta);
+        } else {
+            $historiaActual = $historias->first();
+        }
 
         $proximaCita = Cita::where('mascota_id', $mascota->id)
             ->whereDate('fecha', '>=', now())
@@ -67,49 +82,68 @@ class HistoriaClinicaController extends Controller
             ->with('veterinario')
             ->first();
 
+        // Exámenes y laboratorio
         $examenes = Examen::where('mascota_id', $mascota->id)
             ->orderByDesc('fecha')
             ->get();
 
-        $vacunas = VacunaAplicacion::where('mascota_id', $mascota->id)
-            ->orderByDesc('fecha_aplicacion')   // usa tu columna de fecha
+        // Vacunas y desparasitaciones (aplicaciones + catálogos de la clínica)
+        $vacunaciones = VacunaAplicacion::with(['vacuna', 'usuario'])
+            ->where('mascota_id', $mascota->id)
+            ->orderByDesc('fecha_aplicacion')
             ->get();
 
-        $DesparasitacionAplicaciones = DesparasitacionAplicacion::where('mascota_id', $mascota->id)
-            ->orderByDesc('fecha_aplicacion')   // usa tu columna de fecha
+        $desparasitaciones = DesparasitacionAplicacion::with(['desparasitante', 'usuario'])
+            ->where('mascota_id', $mascota->id)
+            ->orderByDesc('fecha_aplicacion')
             ->get();
 
-            $tenantId = auth()->user()->tenant_id ?? null;
+        $catalogoVacunas = Vacuna::where('tenant_id', $tenantId)
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get();
 
-            $VacunaAplicaciones = VacunaAplicacion::with(['vacuna', 'usuario'])
-                ->where('mascota_id', $mascota->id)
-                ->orderByDesc('fecha_aplicacion')
-                ->get();
+        $catalogoDesparasitantes = Desparasitante::where('tenant_id', $tenantId)
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get();
 
-            $DesparasitacionAplicaciones = DesparasitacionAplicacion::with(['desparasitante', 'usuario'])
-                ->where('mascota_id', $mascota->id)
-                ->orderByDesc('fecha_aplicacion')
-                ->get();
+        // Recetas
+        $recetas = Receta::with(['medicamentos', 'veterinario'])
+            ->where('mascota_id', $mascota->id)
+            ->orderByDesc('fecha_emision')
+            ->orderByDesc('id')
+            ->take(5)
+            ->get();
 
-            $catalogoVacunas = Vacuna::where('tenant_id', $tenantId)->where('activo', true)->orderBy('nombre')->get();
-            $catalogoDesparasitantes = Desparasitante::where('tenant_id', $tenantId)->where('activo', true)->orderBy('nombre')->get();
+        $veterinarios = User::where('tenant_id', $tenantId)
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
-
+        $medicamentosCatalogo = Producto::where('activo', true)
+            ->orderBy('nombre')
+            ->limit(500)
+            ->pluck('nombre');
 
         return view('historias', [
             'mascota'        => $mascota,
             'historias'      => $historias,
             'historiaActual' => $historiaActual,
-            'proximaCita'    => $proximaCita,           
+            'proximaCita'    => $proximaCita,
+
+            // nombres que lee la vista historias.blade.php
             'historia'       => $historiaActual,
             'historial'      => $historias,
-            'examenes'       => $examenes,
-            'vacunas'           => $vacunas,
-            'DesparasitacionAplicaciones' => $DesparasitacionAplicaciones,
-            'VacunaAplicaciones'            => $VacunaAplicaciones,
-            'DesparasitacionAplicaciones'       => $DesparasitacionAplicaciones,
+
+            'examenes'                => $examenes,
+            'vacunaciones'            => $vacunaciones,
+            'desparasitaciones'       => $desparasitaciones,
             'catalogoVacunas'         => $catalogoVacunas,
             'catalogoDesparasitantes' => $catalogoDesparasitantes,
+
+            'recetas'              => $recetas,
+            'veterinarios'         => $veterinarios,
+            'medicamentosCatalogo' => $medicamentosCatalogo,
         ]);
     }
 
@@ -217,91 +251,173 @@ class HistoriaClinicaController extends Controller
         return response()->json(['message' => 'Historia clínica actualizada.']);
     }
 
+    // ======================================================================
+    //  CREAR / ACTUALIZAR CONSULTA DESDE LA VISTA "HISTORIAS"
+    // ======================================================================
 
-    public function store(Mascota $mascota, Request $request)
+    public function store(Request $request, $mascota = null)
     {
-        $validated = $request->validate([
-            'motivo_consulta'          => 'nullable|string',
-            'anamnesis'                => 'nullable|string',
-            'diagnostico'               => 'nullable|string',
-            'tratamiento_texto'         => 'nullable|string',
-            'temperatura'               => 'nullable|numeric',
-            'frecuencia_cardiaca'       => 'nullable|integer',
-            'frecuencia_respiratoria'   => 'nullable|integer',
-            'peso'                      => 'nullable|numeric',
-            'estado_corporal'           => 'nullable|string|max:20',
-            'hidratacion'               => 'nullable|string|max:20',
-            'examen_fisico'             => 'nullable|string',
-            'observaciones'             => 'nullable|string',
-            'proxima_cita_sugerida'     => 'nullable|date',
-            'producto.*'                => 'nullable|string',
-            'presentacion.*'            => 'nullable|string',
-            'dosis.*'                   => 'nullable|string',
-            'cantidad.*'                => 'nullable|string',
-            'archivos.*'                => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf',
-        ]);
+        $id = $mascota
+            ?? $request->input('mascota_id')
+            ?? $request->query('mascota');
 
-        $historia = $mascota->historiasClinicas()->create([
-            'veterinario_id'           => Auth::id(),
-            'fecha_consulta'           => now(),
-            'motivo_consulta'          => $validated['motivo_consulta'] ?? null,
-            'anamnesis'                => $validated['anamnesis'] ?? null,
-            'diagnostico'               => $validated['diagnostico'] ?? null,
-            'tratamiento'               => $validated['tratamiento_texto'] ?? null,
-            'temperatura'               => $validated['temperatura'] ?? null,
-            'frecuencia_cardiaca'       => $validated['frecuencia_cardiaca'] ?? null,
-            'frecuencia_respiratoria'   => $validated['frecuencia_respiratoria'] ?? null,
-            'peso'                      => $validated['peso'] ?? null,
-            'estado_corporal'           => $validated['estado_corporal'] ?? null,
-            'hidratacion'               => $validated['hidratacion'] ?? null,
-            'examen_fisico'             => $validated['examen_fisico'] ?? null,
-            'observaciones'             => $validated['observaciones'] ?? null,
-            'proxima_cita_sugerida'     => $validated['proxima_cita_sugerida'] ?? null,
-        ]);
+        $mascota = $this->mascotaDeLaClinica($id);
 
-        // Fórmula médica (filas dinámicas del formulario)
-        foreach ($request->input('producto', []) as $i => $producto) {
-            if (blank($producto)) continue;
-            $historia->formulaMedica()->create([
-                'producto'      => $producto,
-                'presentacion'  => $request->input("presentacion.$i"),
-                'dosis'         => $request->input("dosis.$i"),
-                'cantidad'      => $request->input("cantidad.$i"),
-                'frecuencia'    => $request->input("frecuencia.$i"),
-                'duracion'      => $request->input("duracion.$i"),
-            ]);
+        $data = $request->validate($this->reglasConsulta());
+
+        $historia = DB::transaction(function () use ($data, $mascota, $request) {
+            $historia = $mascota->historiasClinicas()->create(
+                $this->camposConsulta($data) + [
+                    'tenant_id'      => auth()->user()->tenant_id ?? null,
+                    'veterinario_id' => auth()->id(),
+                    'fecha_consulta' => now(),
+                ]
+            );
+
+            $this->vincularRecetas($historia, $data);
+            $this->guardarArchivos($historia, $request);
+
+            return $historia;
+        });
+
+        return $this->respuestaConsulta($request, $historia, 'Consulta registrada correctamente.');
+    }
+
+    public function update(Request $request, HistoriaClinica $historia)
+    {
+        $data = $request->validate($this->reglasConsulta());
+
+        DB::transaction(function () use ($historia, $data, $request) {
+            // No se cambian la fecha ni el veterinario que atendió
+            $historia->update($this->camposConsulta($data));
+
+            $this->vincularRecetas($historia, $data);
+            $this->guardarArchivos($historia, $request);
+        });
+
+        return $this->respuestaConsulta($request, $historia, 'Consulta actualizada correctamente.');
+    }
+
+    // ======================================================================
+    //  HELPERS
+    // ======================================================================
+
+    private function reglasConsulta(): array
+    {
+        return [
+            'motivo'                  => 'nullable|string|max:500',
+            'anamnesis'               => 'nullable|string',
+            'diagnostico'             => 'nullable|string',
+            'tratamiento'             => 'nullable|string',
+            'temperatura'             => 'nullable|numeric|min:0',
+            'frecuencia_cardiaca'     => 'nullable|integer|min:0',
+            'frecuencia_respiratoria' => 'nullable|integer|min:0',
+            'peso'                    => 'nullable|numeric|min:0',
+            'condicion_corporal'      => 'nullable|string|max:20',
+            'hidratacion'             => 'nullable|string|max:20',
+            'examen_fisico'           => 'nullable|string',
+            'observaciones'           => 'nullable|string',
+            'proxima_cita'            => 'nullable|date',
+            'recetas_ids'             => 'nullable|array',
+            'recetas_ids.*'           => 'integer',
+            'archivos'                => 'nullable|array',
+            'archivos.*'              => 'nullable|file|max:10240|mimes:jpg,jpeg,png,pdf',
+        ];
+    }
+
+    /** Pasa los nombres del formulario a las columnas reales de historias_clinicas. */
+    private function camposConsulta(array $d): array
+    {
+        return [
+            'motivo_consulta'         => $d['motivo'] ?? null,
+            'anamnesis'               => $d['anamnesis'] ?? null,
+            'diagnostico'             => $d['diagnostico'] ?? null,
+            'tratamiento'             => $d['tratamiento'] ?? null,
+            'temperatura'             => $d['temperatura'] ?? null,
+            'frecuencia_cardiaca'     => $d['frecuencia_cardiaca'] ?? null,
+            'frecuencia_respiratoria' => $d['frecuencia_respiratoria'] ?? null,
+            'peso'                    => $d['peso'] ?? null,
+            'estado_corporal'         => $d['condicion_corporal'] ?? null,
+            'hidratacion'             => $d['hidratacion'] ?? null,
+            'examen_fisico'           => $d['examen_fisico'] ?? null,
+            'observaciones'           => $d['observaciones'] ?? null,
+            'proxima_cita_sugerida'   => !empty($d['proxima_cita'])
+                                            ? Carbon::parse($d['proxima_cita'])->toDateString()
+                                            : null,
+        ];
+    }
+
+    /** Recetas creadas antes de guardar la consulta. */
+    private function vincularRecetas(HistoriaClinica $historia, array $data): void
+    {
+        if (empty($data['recetas_ids'])) {
+            return;
         }
 
-        // Archivos adjuntos (radiografías, informes, etc.)
-        foreach ($request->file('archivos', []) as $archivo) {
-            $ruta = $archivo->store("historias-clinicas/{$mascota->id}", 'public');
+        Receta::whereIn('id', $data['recetas_ids'])
+            ->where('mascota_id', $historia->mascota_id)
+            ->whereNull('historia_clinica_id')
+            ->update(['historia_clinica_id' => $historia->id]);
+    }
+
+    /** Archivos adjuntos (radiografías, informes, etc.). */
+    private function guardarArchivos(HistoriaClinica $historia, Request $request): void
+    {
+        foreach (array_filter((array) $request->file('archivos', [])) as $archivo) {
+            $ruta = $archivo->store("historias/{$historia->id}", 'public');
+
             $historia->archivos()->create([
                 'nombre_original' => $archivo->getClientOriginalName(),
                 'ruta'            => $ruta,
-                'tipo'            => $archivo->getClientOriginalExtension() === 'pdf' ? 'pdf' : 'imagen',
+                'tipo'            => strtolower($archivo->getClientOriginalExtension()) === 'pdf' ? 'pdf' : 'imagen',
                 'peso_kb'         => round($archivo->getSize() / 1024),
             ]);
         }
+    }
 
-        if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'message' => 'Consulta registrada correctamente.']);
+    private function respuestaConsulta(Request $request, HistoriaClinica $historia, string $mensaje)
+    {
+        $url = route('historias.show', [$historia->mascota_id, 'consulta' => $historia->id]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success'    => true,
+                'message'    => $mensaje,
+                'id'         => $historia->id,
+                'redirect'   => $url,
+                'url_update' => route('historias.update', $historia->id),
+            ]);
         }
 
-        return redirect()
-            ->route('historias.index', $mascota)
-            ->with('success', 'Consulta registrada correctamente.');
+        return redirect($url)->with('success', $mensaje);
     }
 
-    public function pdf(HistoriaClinica $historiaClinica)
+    /** La mascota debe ser de un cliente de la clínica del usuario. */
+    private function mascotaDeLaClinica($id): Mascota
     {
-        $historiaClinica->load(['mascota.cliente', 'veterinario', 'formulaMedica']);
+        abort_if(blank($id) || !is_numeric($id), 422, 'No se recibió la mascota (mascota_id inválido).');
 
-        $pdf = Pdf::loadView('historia-clinica-pdf', ['historia' => $historiaClinica])
+        $mascota = Mascota::with('cliente')->find($id);
+        abort_unless($mascota, 404, "La mascota {$id} no existe o no es visible para esta clínica.");
+
+        $tenantId = auth()->user()->tenant_id ?? null;
+        abort_unless(
+            $mascota->cliente && $mascota->cliente->tenant_id == $tenantId,
+            404,
+            'La mascota pertenece a otra clínica.'
+        );
+
+        return $mascota;
+    }
+
+ 
+    public function pdf(HistoriaClinica $historia)
+    {
+        $historia->load(['mascota.cliente', 'veterinario', 'formulaMedica']);
+
+        $pdf = Pdf::loadView('historia-clinica-pdf', ['historia' => $historia])
             ->setPaper('letter');
 
-        $nombreArchivo = 'historia-clinica-' . $historiaClinica->mascota->nombre . '-' . $historiaClinica->fecha_consulta->format('Y-m-d') . '.pdf';
-
-        return $pdf->download($nombreArchivo);
+        return $pdf->download('historia_clinica_' . Str::slug($historia->mascota->nombre, '_') . '.pdf');
     }
-
 }

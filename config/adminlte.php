@@ -307,9 +307,7 @@ return [
 
     ['text' => 'Mascotas', 'route' => 'mascotas', 'icon' => 'fas fa-fw fa-paw'],
 
-    ['text' => 'Agenda', 'route' => 'agenda', 'icon' => 'far fa-fw fa-calendar'],
-
-    ['text' => 'Consultas médicas', 'route' => 'historias', 'icon' => 'fas fa-fw fa-notes-medical'],
+    ['text' => 'Agenda', 'route' => 'agenda', 'icon' => 'far fa-fw fa-calendar'],   
 
     ['text' => 'Vacunación', 'url' => 'vacunas', 'icon' => 'fas fa-fw fa-syringe'],
 
