@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CategoriaProducto;
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Yajra\DataTables\Facades\DataTables;
 
 class InventarioController extends Controller
 {
@@ -15,39 +16,44 @@ class InventarioController extends Controller
         return view('inventario', compact('categorias'));
     }
 
-    public function datatable()
+       public function datatable()
     {
-        $productos = Producto::with('categoria')->orderByDesc('created_at')->get();
+        $productos = Producto::with('categoria')->orderByDesc('created_at');
 
-        return response()->json([
-            'data' => $productos->map(fn ($p) => [
-                'id'             => $p->id,
-                'codigo'         => $p->codigo,
-                'nombre'         => $p->nombre,
-                'categoria'      => $p->categoria?->nombre,
-                'tipo'           => $p->tipo,
-                'precio_compra'  => $p->precio_compra,
-                'precio_venta'   => $p->precio_venta,
-                'iva_porcentaje' => $p->iva_porcentaje,
-                'stock'          => $p->stock,
-                'stock_minimo'   => $p->stock_minimo,
-                'stock_bajo'     => $p->stock <= $p->stock_minimo,
-                'activo'         => $p->activo,
-            ]),
-        ]);
+        return DataTables::of($productos)
+            ->addColumn('categoria_nombre', function($p) {
+                return $p->categoria ? $p->categoria->nombre : '—';
+            })
+            ->addColumn('precio_venta_fmt', function($p) {
+                return '$ ' . number_format($p->precio_venta, 0, ',', '.');
+            })
+            ->addColumn('estado_badge', function($p) {
+                return $p->activo 
+                    ? '<span class="badge badge-success">Activo</span>' 
+                    : '<span class="badge badge-secondary">Inactivo</span>';
+            })
+            ->addColumn('acciones', function($p) {
+                return '
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-info" onclick="verProducto(' . $p->id . ')" title="Ver"><i class="fas fa-eye"></i></button>
+                        <button class="btn btn-warning" onclick="editarProducto(' . $p->id . ')" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger" onclick="eliminarProducto(' . $p->id . ')" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </div>
+                ';
+            })
+            ->rawColumns(['estado_badge', 'acciones'])
+            ->make(true);
     }
 
-    public function show($id)
+        public function store(Request $request)
     {
-        $producto = Producto::findOrFail($id);
-
-        return response()->json($producto);
-    }
-
-    public function store(Request $request)
-    {
+        // 1. Validar los datos
         $validado = $this->validarDatos($request);
 
+        // 2. Agregar el tenant_id del usuario logueado
+        $validado['tenant_id'] = auth()->user()->tenant_id ?? 1;
+
+        // 3. Crear el producto
         $producto = Producto::create($validado);
 
         return response()->json([
@@ -55,6 +61,24 @@ class InventarioController extends Controller
             'message'  => 'Producto registrado correctamente.',
             'producto' => $producto->load('categoria'),
         ]);
+    }
+  
+
+        public function show($id)
+    {
+        try {
+            $producto = Producto::with('categoria')->findOrFail($id);
+
+            return response()->json([
+                'success' => true,
+                'producto' => $producto
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Producto no encontrado'
+            ], 404);
+        }
     }
 
     public function update(Request $request, $id)

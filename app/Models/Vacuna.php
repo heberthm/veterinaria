@@ -27,6 +27,8 @@ class Vacuna extends Model
         'activo',
     ];
 
+    protected $table = 'vacunas';
+
     protected $casts = [
         'fecha_caducidad' => 'date',
         'activo' => 'boolean',

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('nombre');
             $table->string('especie');       
             $table->string('raza')->nullable();
-            $table->enum('sexo', ['Macho', 'Hembra'])->nullable();
+            $table->enum('genero', ['Macho', 'Hembra'])->nullable();
             $table->date('fecha_nacimiento')->nullable();
             $table->decimal('peso', 6, 2)->nullable();
             $table->string('color')->nullable();

@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up()
     {
+     if (!Schema::hasTable('categorias_productos')) {  
         Schema::create('proveedores', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->nullable()->constrained()->onDelete('cascade');
@@ -23,7 +24,7 @@ return new class extends Migration
             $table->timestamps();
         });
     }
-
+  }
     public function down()
     {
         Schema::dropIfExists('proveedores');

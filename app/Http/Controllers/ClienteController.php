@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Schema;
+use Illuminate\Support\Facades\Schema; // 🔥 Importación correcta
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Yajra\DataTables\Facades\DataTables;
@@ -26,7 +26,7 @@ class ClienteController extends Controller
     // ============================================================
     public function datatable(Request $request)
     {
-        $tenantId = auth()->user()->tenant_id;
+        $tenantId = auth()->user()->tenant_id ?? 1;
 
         $clientes = Cliente::query()
             ->when($tenantId, fn($q) => $q->where('tenant_id', $tenantId));
@@ -34,7 +34,7 @@ class ClienteController extends Controller
         return DataTables::of($clientes)
             ->addColumn('documento', fn($c) => $c->tipo_documento . ' - ' . $c->numero_documento)
             ->addColumn('mascotas_count', fn($c) => $c->mascotas()->count())
-           ->addColumn('estado', function ($c) {                                                                                                                                                                                                                                                        
+            ->addColumn('estado', function ($c) {
                 return $c->activo
                     ? '<span class="badge-activo">🟢 Activo</span>'
                     : '<span class="badge-inactivo">⚪ Inactivo</span>';
@@ -50,14 +50,13 @@ class ClienteController extends Controller
             ->make(true);
     }
 
-    
-
     // ============================================================
     // 🔥 CREAR
     // ============================================================
     public function store(Request $request)
     {
-        $tenantId = auth()->user()->tenant_id;
+        // 🔥 Fallback a 1 para evitar el error de tenant_id null
+        $tenantId = auth()->user()->tenant_id ?? 1;
 
         $validator = Validator::make($request->all(), [
             'tipo_documento'   => 'required|in:CC,CE,NIT,PA,RC',
@@ -111,12 +110,13 @@ class ClienteController extends Controller
     }
 
     // ============================================================
-    // 🔥 EDIT — devuelve JSON con datos del cliente
+    // 🔥 EDIT
     // ============================================================
     public function edit($id)
     {
-        $cliente = Cliente::where('tenant_id', auth()->user()->tenant_id)
-            ->findOrFail($id);
+        $tenantId = auth()->user()->tenant_id ?? 1;
+        
+        $cliente = Cliente::where('tenant_id', $tenantId)->findOrFail($id);
 
         return response()->json([
             'success' => true,
@@ -125,11 +125,13 @@ class ClienteController extends Controller
     }
 
     // ============================================================
-    // 🔥 DETALLE — devuelve JSON con cliente + relaciones
+    // 🔥 DETALLE
     // ============================================================
     public function detalle($id)
     {
-        $cliente = Cliente::where('tenant_id', auth()->user()->tenant_id)
+        $tenantId = auth()->user()->tenant_id ?? 1;
+
+        $cliente = Cliente::where('tenant_id', $tenantId)
             ->with(['mascotas', 'citas'])
             ->findOrFail($id);
 
@@ -144,7 +146,7 @@ class ClienteController extends Controller
     // ============================================================
     public function update(Request $request, $id)
     {
-        $tenantId = auth()->user()->tenant_id;
+        $tenantId = auth()->user()->tenant_id ?? 1;
 
         $cliente = Cliente::where('tenant_id', $tenantId)->findOrFail($id);
 
@@ -207,8 +209,9 @@ class ClienteController extends Controller
     // ============================================================
     public function destroy($id)
     {
-        $cliente = Cliente::where('tenant_id', auth()->user()->tenant_id)
-            ->findOrFail($id);
+        $tenantId = auth()->user()->tenant_id ?? 1;
+
+        $cliente = Cliente::where('tenant_id', $tenantId)->findOrFail($id);
 
         if ($cliente->mascotas()->exists()) {
             return response()->json([
@@ -228,45 +231,45 @@ class ClienteController extends Controller
     // ============================================================
     // 🔥 BUSCAR (typeahead del POS)
     // ============================================================
-        public function buscar(Request $request)
-        {
-            $query    = $request->get('q', '');
-            $tenantId = auth()->user()->tenant_id;
+    public function buscar(Request $request)
+    {
+        $query    = $request->get('q', '');
+        $tenantId = auth()->user()->tenant_id ?? 1;
 
-            // 🔥 Columnas que SÍ existen en la tabla
-            $columnas = \Illuminate\Support\Facades\Schema::getColumnListing('clientes');
+        // Columnas que SÍ existen en la tabla
+        $columnas = Schema::getColumnListing('clientes');
 
-            $clientes = Cliente::where('tenant_id', $tenantId)
-                ->where('activo', true)
-                ->where(function ($q) use ($query, $columnas) {
-                    if (in_array('nombres', $columnas)) {
-                        $q->orWhere('nombres', 'LIKE', "%{$query}%");
-                    }
-                    if (in_array('apellidos', $columnas)) {
-                        $q->orWhere('apellidos', 'LIKE', "%{$query}%");
-                    }
-                    if (in_array('numero_documento', $columnas)) {
-                        $q->orWhere('numero_documento', 'LIKE', "%{$query}%");
-                    }
-                    if (in_array('celular', $columnas)) {
-                        $q->orWhere('celular', 'LIKE', "%{$query}%");
-                    }
-                    if (in_array('telefono', $columnas)) {
-                        $q->orWhere('telefono', 'LIKE', "%{$query}%");
-                    }
-                    if (in_array('email', $columnas)) {
-                        $q->orWhere('email', 'LIKE', "%{$query}%");
-                    }
-                })
-                ->orderBy('nombres')
-                ->limit(20)
-                ->get();
+        $clientes = Cliente::where('tenant_id', $tenantId)
+            ->where('activo', true)
+            ->where(function ($q) use ($query, $columnas) {
+                if (in_array('nombres', $columnas)) {
+                    $q->orWhere('nombres', 'LIKE', "%{$query}%");
+                }
+                if (in_array('apellidos', $columnas)) {
+                    $q->orWhere('apellidos', 'LIKE', "%{$query}%");
+                }
+                if (in_array('numero_documento', $columnas)) {
+                    $q->orWhere('numero_documento', 'LIKE', "%{$query}%");
+                }
+                if (in_array('celular', $columnas)) {
+                    $q->orWhere('celular', 'LIKE', "%{$query}%");
+                }
+                if (in_array('telefono', $columnas)) {
+                    $q->orWhere('telefono', 'LIKE', "%{$query}%");
+                }
+                if (in_array('email', $columnas)) {
+                    $q->orWhere('email', 'LIKE', "%{$query}%");
+                }
+            })
+            ->orderBy('nombres')
+            ->limit(20)
+            ->get();
 
-            return response()->json([
-                'results' => $clientes->map(fn($c) => [
-                    'id'   => $c->id,
-                    'text' => trim($c->nombres . ' ' . ($c->apellidos ?? '') . ' - ' . ($c->numero_documento ?? '')),
-                ]),
-            ]);
-        } 
- }
+        return response()->json([
+            'results' => $clientes->map(fn($c) => [
+                'id'   => $c->id,
+                'text' => trim($c->nombres . ' ' . ($c->apellidos ?? '') . ' - ' . ($c->numero_documento ?? '')),
+            ]),
+        ]);
+    }
+}

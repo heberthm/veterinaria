@@ -1228,7 +1228,7 @@
         rutaCajaAbrir: "{{ route('caja.abrir') }}",
         rutaCajaCerrar: "{{ route('caja.cerrar') }}",
         csrfToken: "{{ csrf_token() }}",
-        cajaAbierta: {{ $caja->estaAbierta() ? 'true' : 'false' }},
+        cajaAbierta: {{ ($caja && $caja->estaAbierta()) ? 'true' : 'false' }},
         rutaVentaImprimir: "{{ route('ventas.imprimir', ['venta' => '__ID__']) }}",
     };
 
@@ -1641,7 +1641,7 @@
 
     function nombreVendedor(venta) {
         const u = venta.usuario || {};
-        return (u.name || u.nombre || '').trim();
+        return (u.name || u.nombre || venta.vendedor_nombre || '').trim();
     }
 
     function nombreCliente(venta) {
@@ -1961,6 +1961,48 @@ function htmlTicket(venta) {
     }
 
     // ============================================================
+    // 🔥 DEJAR EL POS LISTO PARA LA SIGUIENTE VENTA (sin recargar la página)
+    // ============================================================
+    function reiniciarVenta(data, vendidos) {
+        // 1) Estado
+        carrito = {};
+        datosPago = null;
+        clienteId = null;
+        mascotaId = null;
+        metodoPago = 'efectivo';
+
+        // 2) Cliente, descuento, efectivo recibido y método de pago
+        limpiarCliente();
+        const $desc = document.querySelector('#inputDescuento');
+        if ($desc) $desc.value = 0;
+        const $efe = document.querySelector('#inputEfectivoRecibido');
+        if ($efe) $efe.value = '';
+        $$('#metodosPago button').forEach((b) => b.classList.toggle('is-active', b.dataset.metodo === 'efectivo'));
+
+        // 3) Stock mostrado en las tarjetas de producto
+        (vendidos || []).forEach((v) => {
+            const card = document.querySelector('.vc-product-card[data-tipo="producto"][data-id="' + v.id + '"]');
+            if (!card) return;
+            const nuevo = Math.max(0, (parseInt(card.dataset.stock, 10) || 0) - v.cant);
+            card.dataset.stock = nuevo;
+            const lbl = card.querySelector('.vc-product-card__stock');
+            if (lbl) lbl.textContent = 'Stock: ' + nuevo;
+            card.classList.toggle('is-agotado', nuevo <= 0);
+        });
+
+        // 4) Consecutivo de la siguiente factura (POS-000012 → 000013)
+        const el = document.querySelector('#consecutivoVenta');
+        const m = String(data.numero || '').match(/(\d+)\s*$/);
+        if (el && m) el.textContent = String(parseInt(m[1], 10) + 1).padStart(6, '0');
+
+        // 5) Pantalla
+        renderCarrito();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success',
+            title: 'Venta ' + (data.numero || '') + ' registrada',
+            showConfirmButton: false, timer: 2500, timerProgressBar: true });
+    }
+
+    // ============================================================
     // 🔥 REGISTRAR VENTA
     // ============================================================
     function registrarVenta() {
@@ -2014,14 +2056,28 @@ function htmlTicket(venta) {
             body: JSON.stringify(payload),
         })
             .then(async (res) => {
-                const data = await res.json();
+                // Se lee como texto: si el servidor responde con una página de error (no JSON) también se ve el motivo
+                const texto = await res.text();
+                let data = {};
+                try { data = JSON.parse(texto); } catch (_) {
+                    console.error('[POS] respuesta no JSON (HTTP ' + res.status + '):', texto.slice(0, 800));
+                    throw new Error('El servidor respondió HTTP ' + res.status + ': '
+                        + texto.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 250));
+                }
                 if (!res.ok || !data.success) {
                     const detalle = data.errors ? Object.values(data.errors).flat().join('\n') : '';
-                    throw new Error(data.message || detalle || 'No se pudo registrar la venta.');
+                    console.error('[POS] registrar venta HTTP ' + res.status, data);
+                    throw new Error(data.message || detalle || 'No se pudo registrar la venta (HTTP ' + res.status + ').');
                 }
                 return data;
             })
             .then((data) => {
+                console.info('[POS] Venta guardada en la tabla "' + (data.tabla_ventas || 'ventas') + '" (id ' + data.venta.id
+                    + ') y ' + (data.lineas || '?') + ' línea(s) en la tabla "' + (data.detalle_tabla || '?') + '".');
+
+                // Lo vendido, antes de vaciar el carrito (para descontar el stock mostrado)
+                const vendidos = Object.values(carrito).map((i) => ({ id: i.id, cant: i.cantidad }));
+
                 abrirVistaPrevia(data.venta.id);
 
                 const formatoSel = document.querySelector('#tipoComprobante')?.value || 'ticket';
@@ -2033,13 +2089,8 @@ function htmlTicket(venta) {
                     }
                 }, 400);
 
-                if (window.jQuery) {
-                    window.jQuery('#modalVistaPrevia').one('hidden.bs.modal', () => {
-                        window.location.reload();
-                    });
-                } else {
-                    setTimeout(() => window.location.reload(), 1500);
-                }
+                // Sin recargar la página: se deja la pantalla lista para la siguiente venta
+                reiniciarVenta(data, vendidos);
             })
             .catch((err) => {
                 Swal.fire({ icon: 'error', title: 'Error', text: err.message });

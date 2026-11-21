@@ -50,14 +50,12 @@ class Mascota extends Model
     ];
 
 
-    /**
-     * Relación con el cliente
-     */
-    public function cliente(): BelongsTo
-    {
-        return $this->belongsTo(Cliente::class);
-    }
-
+    // 🔥 Relación con el cliente (necesaria para el DataTable)
+    public function cliente()
+        {
+            return $this->belongsTo(Cliente::class);
+        }
+    
     /**
      * Relación con historias clínicas
      */

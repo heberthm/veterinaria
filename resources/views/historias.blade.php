@@ -906,7 +906,7 @@
                         <dt>Nombre</dt>       <dd>{{ $m->nombre ?? '—' }}</dd>
                         <dt>Especie</dt>      <dd>{{ ucfirst($m->especie ?? '—') }}</dd>
                         <dt>Raza</dt>         <dd>{{ $m->raza ?? '—' }}</dd>
-                        <dt>Sexo</dt>         <dd>{{ ucfirst($m->genero ?? '—') }}</dd>
+                        <dt>Genero</dt>         <dd>{{ ucfirst($m->genero ?? '—') }}</dd>
                         <dt>F. Nac.</dt>
                         <dd>
                             {{ $m?->fecha_nacimiento ? \Carbon\Carbon::parse($m->fecha_nacimiento)->format('d/m/Y') : '—' }}

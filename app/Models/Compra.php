@@ -16,18 +16,23 @@ class Compra extends Model
         'user_id',
         'numero_factura_proveedor',
         'fecha_compra',
+        'fecha_vencimiento', // 🔥 Agregar si no lo tenías en fillable
+        'metodo_pago',       // 🔥 Agregar si no lo tenías en fillable
         'subtotal',
         'iva_valor',
         'total',
-        'estado',        // pendiente | recibida | anulada
+        'items_json', 
+        'estado',
         'observacion',
     ];
 
     protected $casts = [
-        'fecha_compra' => 'date',
-        'subtotal'     => 'decimal:2',
-        'iva_valor'    => 'decimal:2',
-        'total'        => 'decimal:2',
+        'fecha_compra'      => 'date',
+        'fecha_vencimiento' => 'date',
+        'total'             => 'decimal:2',
+        'subtotal'          => 'decimal:2',
+        'iva_valor'         => 'decimal:2', // Opcional, pero recomendado
+        'items_json'        => 'array',     // 🔥 ESTA ES LA LÍNEA QUE FALTA
     ];
 
     public function proveedor()

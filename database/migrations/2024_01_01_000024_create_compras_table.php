@@ -27,6 +27,8 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('numero_factura_proveedor' ,18)->nullable();
             $table->date('fecha_compra');
+            $table->date('fecha_vencimiento');
+             $table->string('metodio_pago' ,50)->nullable();
             $table->decimal('subtotal', 12, 2)->default(0);
             $table->decimal('iva_valor', 12, 2)->default(0);
             $table->decimal('total', 12, 2)->default(0);

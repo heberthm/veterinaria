@@ -21,7 +21,7 @@ return new class extends Migration
             $table->foreignId('cliente_id')->constrained()->onDelete('cascade');
             $table->foreignId('mascota_id')->constrained()->onDelete('cascade');
             $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
-            $table->unsignedBigInteger('veterinario_id')->nullable()->constrained('veterinarios')->onDelete('cascade');
+            $table->foreignId('veterinario_id')->nullable()->constrained('veterinarios')->onDelete('cascade');
             
             // Fechas y horas
             $table->date('fecha');
@@ -30,7 +30,7 @@ return new class extends Migration
             
             // Tipo y estado
             $table->text('tipo_consulta')->nullable();            
-            $table->text('estado')->nullable();            
+           $table->string('estado', 50)->nullable();          
             // Información adicional
             $table->text('motivo');
             $table->text('observaciones')->nullable();

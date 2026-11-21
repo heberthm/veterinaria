@@ -318,39 +318,44 @@ class MascotaController extends Controller
     /**
      * Buscar mascotas (API / typeahead)
      */
-  public function buscar(Request $request)
-{
-    $query    = $request->get('q', '');
-    $page     = (int) $request->get('page', 1);
-    $perPage  = 20;
-    $tenantId = auth()->user()->tenant_id;
+    public function buscar(Request $request)
+    {
+        $query = trim($request->get('q', ''));
+        $tenantId = auth()->user()->tenant_id ?? 1;
 
-    $baseQuery = Cliente::where('tenant_id', $tenantId)
-        ->where('activo', true)
-        ->where(function ($q) use ($query) {
-            $q->where('nombres', 'LIKE', "%{$query}%")
-              ->orWhere('apellidos', 'LIKE', "%{$query}%")
-              ->orWhere('numero_documento', 'LIKE', "%{$query}%")
-              ->orWhere('celular', 'LIKE', "%{$query}%")
-              ->orWhere('email', 'LIKE', "%{$query}%");
-        });
+        if (empty($query)) {
+            return response()->json(['results' => []]);
+        }
 
-    $total = $baseQuery->count();
+        // Hacemos un JOIN manual para asegurar que encontramos la mascota
+        $mascotas = \Illuminate\Support\Facades\DB::table('mascotas')
+            ->leftJoin('clientes', 'clientes.id', '=', 'mascotas.cliente_id')
+            ->where(function($q) use ($tenantId) {
+                // Si la mascota tiene tenant, lo usamos. Si no, el del cliente.
+                $q->where('mascotas.tenant_id', $tenantId)
+                  ->orWhere('clientes.tenant_id', $tenantId);
+            })
+            ->where(function($q) use ($query) {
+                // 🔥 Búsqueda por Mascota O Cliente
+                $q->where('mascotas.nombre', 'LIKE', "%{$query}%")
+                  ->orWhere('mascotas.numero_chip', 'LIKE', "%{$query}%")
+                  ->orWhere('clientes.nombres', 'LIKE', "%{$query}%")
+                  ->orWhere('clientes.apellidos', 'LIKE', "%{$query}%");
+            })
+            ->select('mascotas.id', 'mascotas.nombre as mascota_nombre', 'clientes.nombres as cliente_nombres', 'clientes.apellidos as cliente_apellidos')
+            ->limit(15)
+            ->get();
 
-    $clientes = $baseQuery
-        ->orderBy('nombres')
-        ->skip(($page - 1) * $perPage)
-        ->take($perPage)
-        ->get();
+        return response()->json([
+            'results' => $mascotas->map(function($m) {
+                $cliente = trim(($m->cliente_nombres ?? '') . ' ' . ($m->cliente_apellidos ?? ''));
+                if (empty($cliente)) $cliente = 'Sin dueño';
 
-    return response()->json([
-        'results' => $clientes->map(fn($c) => [
-            'id'   => $c->id,
-            'text' => $c->nombres . ' ' . $c->apellidos . ' - ' . $c->numero_documento,
-        ]),
-        'pagination' => [
-            'more' => ($page * $perPage) < $total,
-        ],
-    ]);
- }
-}
+                return [
+                    'id' => $m->id,
+                    'text' => " {$m->mascota_nombre}  - {$cliente}" 
+                ];
+            })
+        ]);
+    }
+}    

@@ -35,8 +35,8 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-bordered table-hover" id="tablaInventario">
-                            <thead>
+                        <table id="tablaInventario" class="table table-hover table-striped" style="width:100%; font-size:12.5px;">
+                           <thead>
                                 <tr>
                                     <th>Código</th>
                                     <th>Nombre</th>
@@ -230,250 +230,468 @@
     </div>
 </div>
 
+{{-- ============================================================ --}}
+{{-- 🔥 MODAL PARA VER PRODUCTO (Estilo moderno)                  --}}
+{{-- ============================================================ --}}
+<div class="modal fade" id="modalVerProducto" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background-color: #343a40; color: white; border-radius: 12px 12px 0 0; padding: 15px 20px;">
+                <h5 class="modal-title" style="font-size: 1.1rem; font-weight: 600;">
+                    <i class="fas fa-eye mr-2"></i> Detalle del Producto
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close" style="opacity: 0.8;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            
+            <!-- Contenedor para los datos -->
+            <div class="modal-body" id="detalleProductoBody" style="padding: 25px; background-color: #ffffff;">
+                <div class="text-center py-4">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p class="mt-2">Cargando...</p>
+                </div>
+            </div>
+            
+            <div class="modal-footer" style="background-color: #ffffff; border-top: 1px solid #e2e8f0; padding: 15px 25px; border-radius: 0 0 12px 12px;">
+                <button type="button" class="btn btn-outline-secondary" data-dismiss="modal" style="border-radius: 8px; padding: 8px 20px; font-weight: 600;">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 @stop
 
 @section('js')
 <script>
-$(document).ready(function() {
-    // ============================================================
-    // DATATABLE
-    // ============================================================
-    window.tablaInventario = $('#tablaInventario').DataTable({
-        processing: true,
-        serverSide: true,
-        ajax: "{{ route('inventario.datatable') }}",
-        columns: [
-            { data: 'codigo', name: 'codigo', defaultContent: '—' },
-            { data: 'nombre', name: 'nombre' },
-            { data: 'categoria', name: 'categoria', defaultContent: '—' },
-            { data: 'tipo', name: 'tipo', render: function(d) { 
-                return d ? d.charAt(0).toUpperCase() + d.slice(1) : '—'; 
-            }},
-            { data: 'precio_venta', name: 'precio_venta', render: function(d) { 
-                return '$' + Number(d).toLocaleString('es-CO'); 
-            }},
-            { data: 'iva_porcentaje', name: 'iva_porcentaje', render: function(d) { 
-                return d + '%'; 
-            }},
-            { data: 'stock', name: 'stock', render: function(d, t, row) {
-                if (row.tipo !== 'producto') return '—';
-                return d + ' ' + (row.stock_bajo ? '<span class="badge badge-warning">Bajo</span>' : '');
-            }},
-            { data: 'activo', name: 'activo', render: function(d) {
-                return d 
-                    ? '<span class="badge badge-success">Activo</span>' 
-                    : '<span class="badge badge-danger">Inactivo</span>';
-            }},
-            { data: 'acciones', name: 'acciones', orderable: false, searchable: false }
-        ],
-        order: [[0, 'desc']],
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
-        }
-    });
+(function () {
+    'use strict';
 
-    // ============================================================
-    // MOSTRAR/OCULTAR STOCK SEGÚN TIPO
-    // ============================================================
-    $('#producto_tipo').on('change', function() {
-        $('#filaStock').toggle($(this).val() === 'producto');
-    });
+    // Evita doble inicialización si el script se carga dos veces
+    if (window.__inventarioIniciado) return;
+    window.__inventarioIniciado = true;
 
-    // ============================================================
-    // EDITAR PRODUCTO
-    // ============================================================
-    $(document).on('click', '.btn-editar-producto', function() {
-        var id = $(this).data('id');
-        $.get('/inventario/' + id, function(p) {
-            $('#tituloModalProducto').html('<i class="fas fa-pen" style="color:var(--vc-blue)"></i> Editar Producto');
-            $('#producto_id').val(p.id);
-            $('#formProducto [name=codigo]').val(p.codigo);
-            $('#formProducto [name=nombre]').val(p.nombre);
-            $('#formProducto [name=categoria_id]').val(p.categoria_id);
-            $('#formProducto [name=tipo]').val(p.tipo).trigger('change');
-            $('#formProducto [name=descripcion]').val(p.descripcion);
-            $('#formProducto [name=precio_compra]').val(p.precio_compra);
-            $('#formProducto [name=precio_venta]').val(p.precio_venta);
-            $('#formProducto [name=iva_porcentaje]').val(p.iva_porcentaje);
-            $('#formProducto [name=stock]').val(p.stock);
-            $('#formProducto [name=stock_minimo]').val(p.stock_minimo);
-            $('#formProducto [name=unidad_medida]').val(p.unidad_medida);
-            $('#modalProducto').modal('show');
-        });
-    });
+    const CSRF = '{{ csrf_token() }}';
 
-    // ============================================================
-    // ELIMINAR PRODUCTO
-    // ============================================================
-    $(document).on('click', '.btn-eliminar-producto', function() {
-        var id = $(this).data('id');
-        Swal.fire({
-            title: '¿Estás seguro?',
-            text: '¿Eliminar este producto del inventario?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Sí, eliminar',
-            cancelButtonText: 'Cancelar'
-        }).then(function(result) {
-            if (result.isConfirmed) {
+    // Escapa texto antes de meterlo en HTML
+    window.escHtml = function (v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    };
+
+    // Espera a que jQuery y DataTables existan (el layout puede cargar este script antes)
+    function esperar(cb, n) {
+        n = n || 0;
+        if (window.jQuery && jQuery.fn && jQuery.fn.DataTable) return cb(window.jQuery);
+        if (n > 200) return console.error('[Inventario] jQuery/DataTables no están disponibles');
+        setTimeout(function () { esperar(cb, n + 1); }, 50);
+    }
+
+    esperar(function ($) {
+        $(function () {
+
+            // ============================================================
+            // DATATABLE
+            // ============================================================
+            if ($.fn.DataTable.isDataTable('#tablaInventario')) {
+                $('#tablaInventario').DataTable().destroy();
+            }
+
+            // Que un error del servidor no muestre el alert feo de DataTables
+            $.fn.dataTable.ext.errMode = 'none';
+            $('#tablaInventario').on('error.dt', function (e, settings, techNote, message) {
+                console.error('[Inventario] DataTables:', message);
+            });
+
+            window.tablaInventario = $('#tablaInventario').DataTable({
+                processing: true,
+                serverSide: true,
+                destroy: true,
+                ajax: {
+                    url: "{{ route('inventario.datatable') }}",
+                    error: function (xhr) {
+                        console.error('[Inventario] datatable HTTP ' + xhr.status,
+                            (xhr.responseText || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 400));
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Error', (xhr.responseJSON && xhr.responseJSON.message)
+                                || ('No se pudo cargar el inventario (HTTP ' + xhr.status + ').'), 'error');
+                        }
+                    }
+                },
+                columns: [
+                    { data: 'codigo',           name: 'codigo',         className: 'text-center' },
+                    { data: 'nombre',           name: 'nombre' },
+                    // Columnas calculadas: sin búsqueda/orden para no generar "Unknown column" en SQL
+                    { data: 'categoria_nombre', name: 'categoria_nombre', orderable: false, searchable: false },
+                    { data: 'tipo',             name: 'tipo',           className: 'text-center' },
+                    { data: 'precio_venta',     name: 'precio_venta',   className: 'text-right' },
+                    { data: 'iva_porcentaje',   name: 'iva_porcentaje', className: 'text-center' },
+                    { data: 'stock',            name: 'stock',          className: 'text-center' },
+                    { data: 'estado_badge',     name: 'estado_badge',   className: 'text-center', orderable: false, searchable: false },
+                    {
+                        // Los botones se dibujan aquí, sin depender del HTML que devuelva el controlador
+                        data: null, name: 'acciones', orderable: false, searchable: false,
+                        className: 'text-center text-nowrap', width: '150px',
+                        render: function (data, type, row) {
+                            // id de la fila; si el servidor no lo manda, se toma del HTML de "acciones"
+                            let id = row.id;
+                            if (!id && row.acciones) {
+                                const m = String(row.acciones).match(/data-id=["'](\d+)/)
+                                       || String(row.acciones).match(/\((\d+)/);
+                                if (m) id = m[1];
+                            }
+                            if (!id) return '';
+                            const nombre = escHtml(String(row.nombre || '').replace(/<[^>]*>/g, ''));
+                            return '<button type="button" class="btn btn-info btn-sm mr-1" onclick="verProducto(' + id + ')" title="Ver">'
+                                 +   '<i class="fas fa-eye"></i></button>'
+                                 + '<button type="button" class="btn btn-warning btn-sm btn-editar-producto mr-1" data-id="' + id + '" title="Editar">'
+                                 +   '<i class="fas fa-edit"></i></button>'
+                                 + '<button type="button" class="btn btn-success btn-sm btn-ajustar-stock mr-1" data-id="' + id + '" data-nombre="' + nombre + '" title="Ajustar stock">'
+                                 +   '<i class="fas fa-exchange-alt"></i></button>'
+                                 + '<button type="button" class="btn btn-danger btn-sm btn-eliminar-producto" data-id="' + id + '" title="Eliminar">'
+                                 +   '<i class="fas fa-trash"></i></button>';
+                        }
+                    }
+                ],
+                order: [[1, 'asc']],
+                language: {
+                    processing:     'Procesando...',
+                    search:         'Buscar:',
+                    lengthMenu:     'Mostrar _MENU_ registros',
+                    info:           'Mostrando _START_ a _END_ de _TOTAL_ registros',
+                    infoEmpty:      'Mostrando 0 a 0 de 0 registros',
+                    infoFiltered:   '(filtrado de _MAX_ registros totales)',
+                    loadingRecords: 'Cargando...',
+                    zeroRecords:    'No se encontraron resultados',
+                    emptyTable:     'No hay datos disponibles',
+                    paginate: { first: 'Primero', previous: 'Anterior', next: 'Siguiente', last: 'Último' },
+                },
+            });
+
+            // ============================================================
+            // MOSTRAR/OCULTAR STOCK SEGÚN TIPO
+            // ============================================================
+            $('#producto_tipo').on('change', function () {
+                $('#filaStock').toggle($(this).val() === 'producto');
+            });
+
+            // ============================================================
+            // EDITAR PRODUCTO
+            // ============================================================
+            function editarProducto(id) {
+                if (!id) return console.error('[Inventario] editar: falta el id');
                 $.ajax({
                     url: '/inventario/' + id,
-                    method: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-                    success: function(res) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Eliminado',
-                            text: res.message || 'Producto eliminado correctamente',
-                            confirmButtonColor: '#28a745'
-                        });
-                        window.tablaInventario.ajax.reload();
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        const p = response.producto || response;
+                        // ?? y no || : así un IVA de 0 o un stock mínimo de 0 no se cambian por 19 / 5
+                        const v = (x, d) => (x === null || x === undefined ? d : x);
+
+                        $('#tituloModalProducto').html('Editar Producto');
+                        $('#producto_id').val(p.id);
+                        $('#formProducto [name=codigo]').val(v(p.codigo, ''));
+                        $('#formProducto [name=nombre]').val(v(p.nombre, ''));
+                        $('#formProducto [name=categoria_id]').val(v(p.categoria_id, ''));
+                        $('#formProducto [name=tipo]').val(v(p.tipo, 'producto')).trigger('change');
+                        $('#formProducto [name=descripcion]').val(v(p.descripcion, ''));
+                        $('#formProducto [name=precio_compra]').val(v(p.precio_compra, 0));
+                        $('#formProducto [name=precio_venta]').val(v(p.precio_venta, 0));
+                        $('#formProducto [name=iva_porcentaje]').val(v(p.iva_porcentaje, 19));
+                        $('#formProducto [name=stock]').val(v(p.stock, 0));
+                        $('#formProducto [name=stock_minimo]').val(v(p.stock_minimo, 5));
+                        $('#formProducto [name=unidad_medida]').val(v(p.unidad_medida, ''));
+
+                        $('#modalProducto').modal('show');
                     },
-                    error: function(xhr) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error',
-                            text: xhr.responseJSON?.message || 'No se pudo eliminar.',
-                            confirmButtonColor: '#d33'
-                        });
+                    error: function (xhr) {
+                        Swal.fire('Error', 'No se pudo cargar el producto', 'error');
+                        console.error(xhr);
                     }
                 });
             }
-        });
-    });
+            window.editarProducto = editarProducto;
 
-    // ============================================================
-    // AJUSTAR STOCK
-    // ============================================================
-    $(document).on('click', '.btn-ajustar-stock', function() {
-        $('#ajuste_producto_id').val($(this).data('id'));
-        $('#ajuste_nombre_producto').text($(this).data('nombre'));
-        $('#formAjusteStock')[0].reset();
-        $('#erroresAjuste').empty();
-        $('#modalAjusteStock').modal('show');
-    });
-
-    // ============================================================
-    // APLICAR AJUSTE DE STOCK
-    // ============================================================
-    $('#btn-aplicar-ajuste').on('click', function() {
-        var id = $('#ajuste_producto_id').val();
-        var formData = {
-            _token: '{{ csrf_token() }}',
-            tipo: $('#ajuste_tipo').val(),
-            cantidad: $('#ajuste_cantidad').val(),
-            motivo: $('#ajuste_motivo').val(),
-        };
-
-        $.ajax({
-            url: '/inventario/' + id + '/stock',
-            method: 'POST',
-            data: formData,
-            beforeSend: function() {
-                $('#btn-aplicar-ajuste').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Aplicando...');
-            },
-            success: function(res) {
-                $('#modalAjusteStock').modal('hide');
+            // ============================================================
+            // ELIMINAR PRODUCTO
+            // ============================================================
+            function eliminarProducto(id) {
+                if (!id) return console.error('[Inventario] eliminar: falta el id');
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Éxito',
-                    text: res.message || 'Stock ajustado correctamente',
-                    confirmButtonColor: '#28a745'
+                    title: '¿Estás seguro?',
+                    text: '¿Eliminar este producto del inventario?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sí, eliminar',
+                    cancelButtonText: 'Cancelar'
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    $.ajax({
+                        url: '/inventario/' + id,
+                        method: 'DELETE',
+                        headers: { 'X-CSRF-TOKEN': CSRF },
+                        success: function (res) {
+                            Swal.fire({ icon: 'success', title: 'Eliminado',
+                                text: (res && res.message) || 'Producto eliminado correctamente',
+                                timer: 1500, timerProgressBar: true, showConfirmButton: false });
+                            window.tablaInventario.ajax.reload(null, false);
+                        },
+                        error: function (xhr) {
+                            Swal.fire({ icon: 'error', title: 'Error',
+                                text: (xhr.responseJSON && xhr.responseJSON.message) || 'No se pudo eliminar.',
+                                timer: 3000, timerProgressBar: true, showConfirmButton: false });
+                        }
+                    });
                 });
-                window.tablaInventario.ajax.reload();
-            },
-            error: function(xhr) {
-                $('#erroresAjuste').text(xhr.responseJSON?.message || 'No se pudo ajustar el stock.');
-            },
-            complete: function() {
-                $('#btn-aplicar-ajuste').prop('disabled', false).html('<i class="fas fa-check"></i> Aplicar Ajuste');
             }
-        });
-    });
+            window.eliminarProducto = eliminarProducto;
 
-    // ============================================================
-    // GUARDAR PRODUCTO (NUEVO/EDITAR)
-    // ============================================================
-    $('#btn-guardar-producto').on('click', function() {
-        var form = $('#formProducto');
-        var id = $('#producto_id').val();
-        var url = id ? '/inventario/' + id : '/inventario';
-        var method = id ? 'PUT' : 'POST';
-        var formData = form.serialize();
-
-        $('#erroresProducto').empty();
-
-        $.ajax({
-            url: url,
-            method: method,
-            data: formData,
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            beforeSend: function() {
-                $('#btn-guardar-producto').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
-            },
-            success: function(res) {
-                $('#modalProducto').modal('hide');
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Éxito',
-                    text: res.message || 'Producto guardado correctamente',
-                    confirmButtonColor: '#28a745'
-                });
-                window.tablaInventario.ajax.reload();
-                $('#formProducto')[0].reset();
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    var errors = xhr.responseJSON.errors;
-                    var mensaje = '';
-                    $.each(errors, function(key, value) {
-                        mensaje += value[0] + '\n';
-                    });
-                    $('#erroresProducto').html(mensaje);
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: xhr.responseJSON?.message || 'Error al guardar el producto',
-                        confirmButtonColor: '#d33'
-                    });
+            // Id del botón: data-id, data-producto-id o, si no, el número dentro de su onclick
+            function idDelBoton(el) {
+                const $el = $(el);
+                let id = $el.data('id') || $el.data('producto-id') || $el.data('producto')
+                      || $el.closest('[data-id]').data('id');
+                if (!id) {
+                    const m = String($el.attr('onclick') || '').match(/\((\d+)/);
+                    if (m) id = m[1];
                 }
-            },
-            complete: function() {
-                $('#btn-guardar-producto').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
+                if (!id) {   // último recurso: id guardado en la fila de DataTables
+                    const fila = window.tablaInventario.row($el.closest('tr')).data();
+                    if (fila) id = fila.id;
+                }
+                return id;
             }
+
+            // Delegado: sirve aunque el controlador use otra clase para los botones
+            const SEL_EDITAR   = '.btn-editar-producto, .btn-editar, .btn-edit, .editar-producto, [data-accion="editar"]';
+            const SEL_ELIMINAR = '.btn-eliminar-producto, .btn-eliminar, .btn-delete, .eliminar-producto, [data-accion="eliminar"]';
+
+            $('#tablaInventario').on('click', SEL_EDITAR, function (e) {
+                if ($(this).attr('onclick')) return;   // ya tiene su propio onclick global
+                e.preventDefault();
+                editarProducto(idDelBoton(this));
+            });
+            $('#tablaInventario').on('click', SEL_ELIMINAR, function (e) {
+                if ($(this).attr('onclick')) return;
+                e.preventDefault();
+                eliminarProducto(idDelBoton(this));
+            });
+
+            // ============================================================
+            // AJUSTAR STOCK
+            // ============================================================
+            $(document).on('click', '.btn-ajustar-stock', function () {
+                $('#formAjusteStock')[0].reset();
+                $('#ajuste_producto_id').val($(this).data('id'));
+                $('#ajuste_nombre_producto').text($(this).data('nombre'));
+                $('#erroresAjuste').empty();
+                $('#modalAjusteStock').modal('show');
+            });
+
+            $('#btn-aplicar-ajuste').on('click', function () {
+                const id = $('#ajuste_producto_id').val();
+                const $btn = $(this);
+
+                $('#erroresAjuste').empty();
+
+                $.ajax({
+                    url: '/inventario/' + id + '/stock',
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': CSRF },
+                    data: {
+                        tipo:     $('#ajuste_tipo').val(),
+                        cantidad: $('#ajuste_cantidad').val(),
+                        motivo:   $('#ajuste_motivo').val(),
+                    },
+                    beforeSend: function () {
+                        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Aplicando...');
+                    },
+                    success: function (res) {
+                        $('#modalAjusteStock').modal('hide');
+                        Swal.fire({ icon: 'success', title: 'Éxito',
+                            text: (res && res.message) || 'Stock ajustado correctamente',
+                            timer: 1500, timerProgressBar: true, showConfirmButton: false });
+                        window.tablaInventario.ajax.reload(null, false);
+                    },
+                    error: function (xhr) {
+                        const j = xhr.responseJSON || {};
+                        const msg = j.errors
+                            ? Object.values(j.errors).flat().map(escHtml).join('<br>')
+                            : escHtml(j.message || 'No se pudo ajustar el stock.');
+                        $('#erroresAjuste').html(msg);
+                    },
+                    complete: function () {
+                        $btn.prop('disabled', false).html('<i class="fas fa-check"></i> Aplicar Ajuste');
+                    }
+                });
+            });
+
+            // ============================================================
+            // GUARDAR PRODUCTO (NUEVO/EDITAR)
+            // ============================================================
+            function guardarProducto() {
+                const $btn = $('#btn-guardar-producto');
+                if ($btn.prop('disabled')) return;     // evita doble envío
+
+                const id = $('#producto_id').val();
+                const url = id ? '/inventario/' + id : '/inventario';
+                let data = $('#formProducto').serialize();
+                // En un producto nuevo no se manda "id" vacío (podría romper el insert)
+                if (!id) data = data.replace(/(^|&)id=[^&]*/, '').replace(/^&/, '');
+
+                $('#erroresProducto').empty();
+
+                $.ajax({
+                    url: url,
+                    method: id ? 'PUT' : 'POST',
+                    data: data,
+                    headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+                    beforeSend: function () {
+                        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
+                    },
+                    success: function (res) {
+                        $('#modalProducto').modal('hide');
+                        Swal.fire({ icon: 'success', title: 'Éxito',
+                            text: (res && res.message) || 'Producto guardado correctamente',
+                            timer: 1500, timerProgressBar: true, showConfirmButton: false });
+                        window.tablaInventario.ajax.reload(null, false);
+                    },
+                    error: function (xhr) {
+                        const j = xhr.responseJSON || {};
+                        if (xhr.status === 422 && j.errors) {
+                            $('#erroresProducto').html(
+                                Object.values(j.errors).flat().map(escHtml).join('<br>')
+                            );
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Error',
+                                text: j.message || ('Error al guardar el producto (HTTP ' + xhr.status + ')'),
+                                timer: 3000, timerProgressBar: true, showConfirmButton: false });
+                        }
+                    },
+                    complete: function () {
+                        $btn.prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
+                    }
+                });
+            }
+
+            $('#btn-guardar-producto').on('click', guardarProducto);
+
+            // Enter dentro del formulario no debe enviarlo de forma normal (recarga de página)
+            $('#formProducto').on('submit', function (e) {
+                e.preventDefault();
+                guardarProducto();
+            });
+
+            // ============================================================
+            // LIMPIAR FORMULARIOS AL CERRAR MODALES
+            // ============================================================
+            $('#modalProducto').on('hidden.bs.modal', function () {
+                $('#formProducto')[0].reset();
+                $('#producto_id').val('');
+                $('#erroresProducto').empty();
+                $('#filaStock').show();
+                $('#tituloModalProducto').text('Nuevo Producto');
+                $('#btn-guardar-producto').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
+            });
+
+            $('#modalAjusteStock').on('hidden.bs.modal', function () {
+                $('#formAjusteStock')[0].reset();
+                $('#erroresAjuste').empty();
+                $('#btn-aplicar-ajuste').prop('disabled', false).html('<i class="fas fa-check"></i> Aplicar Ajuste');
+            });
         });
     });
 
     // ============================================================
-    // LIMPIAR FORMULARIO AL CERRAR MODAL
+    // NUEVO PRODUCTO (lo llama el botón con onclick)
     // ============================================================
-    $('#modalProducto').on('hidden.bs.modal', function() {
+    window.abrirModalNuevoProducto = function () {
+        const $ = window.jQuery;
         $('#formProducto')[0].reset();
         $('#producto_id').val('');
         $('#erroresProducto').empty();
         $('#filaStock').show();
-        $('#tituloModalProducto').html('<i class="fas fa-box" style="color:var(--vc-green)"></i> Nuevo Producto');
+        $('#tituloModalProducto').text('Nuevo Producto');
         $('#btn-guardar-producto').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
-    });
+    };
 
-    $('#modalAjusteStock').on('hidden.bs.modal', function() {
-        $('#formAjusteStock')[0].reset();
-        $('#erroresAjuste').empty();
-        $('#btn-aplicar-ajuste').prop('disabled', false).html('<i class="fas fa-check"></i> Aplicar Ajuste');
-    });
-});
+    // ============================================================
+    // VER PRODUCTO (lo llama el botón de la tabla con onclick)
+    // ============================================================
+    window.verProducto = function (id) {
+        const $ = window.jQuery;
 
-function abrirModalNuevoProducto() {
-    $('#formProducto')[0].reset();
-    $('#producto_id').val('');
-    $('#erroresProducto').empty();
-    $('#filaStock').show();    
-    $('#btn-guardar-producto').prop('disabled', false).html('<i class="fas fa-save"></i> Guardar');
-}
+        $.ajax({
+            url: '/inventario/' + id,
+            method: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                const p = response.producto || response;
+                if (!p || !p.id) {
+                    Swal.fire('Error', 'No se pudo cargar el producto.', 'error');
+                    return;
+                }
+
+                const dinero = (n) => '$' + (parseFloat(n) || 0).toLocaleString('es-CO');
+                const activo = (p.activo === undefined) ? true : !!Number(p.activo);
+                const estadoBadge = activo
+                    ? '<span class="badge badge-success" style="padding:4px 10px;border-radius:20px;">Activo</span>'
+                    : '<span class="badge badge-secondary" style="padding:4px 10px;border-radius:20px;">Inactivo</span>';
+                const bajo = Number(p.stock) <= Number(p.stock_minimo);
+
+                const fila = (icono, etiqueta, valor) => `
+                    <div class="d-flex align-items-center mb-2 p-2" style="background:#f8fafc;border-radius:8px;">
+                        <div class="mr-3 text-center" style="width:25px;color:#3b82f6;"><i class="${icono}"></i></div>
+                        <div style="font-size:13px;"><strong>${etiqueta}:</strong> ${valor}</div>
+                    </div>`;
+
+                document.getElementById('detalleProductoBody').innerHTML = `
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center text-white mr-3"
+                             style="width:65px;height:65px;background:#3b82f6;font-size:24px;font-weight:bold;">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0 font-weight-bold" style="font-size:22px;">${escHtml(p.nombre)}</h4>
+                            <div class="d-flex align-items-center mt-1">
+                                <span class="text-muted small mr-2">${escHtml(p.codigo || 'Sin código')}</span>
+                                ${estadoBadge}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3" style="font-weight:700;font-size:15px;"><i class="fas fa-info-circle"></i> Información General</h6>
+                            ${fila('fas fa-tag', 'Categoría', escHtml(p.categoria ? p.categoria.nombre : '—'))}
+                            ${fila('fas fa-layer-group', 'Tipo', escHtml(p.tipo))}
+                            ${fila('fas fa-align-left', 'Descripción', escHtml(p.descripcion || '—'))}
+                            ${fila('fas fa-ruler', 'Unidad de Medida', escHtml(p.unidad_medida || '—'))}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-3" style="font-weight:700;font-size:15px;"><i class="fas fa-dollar-sign"></i> Precios y Stock</h6>
+                            ${fila('fas fa-shopping-cart', 'Precio Compra', dinero(p.precio_compra))}
+                            ${fila('fas fa-cash-register', 'Precio Venta', dinero(p.precio_venta))}
+                            ${fila('fas fa-percent', 'IVA', escHtml(p.iva_porcentaje) + '%')}
+                            ${fila('fas fa-cubes', 'Stock Actual', escHtml(p.stock)
+                                + (bajo ? ' <span class="text-danger font-weight-bold">(¡Bajo!)</span>' : ''))}
+                        </div>
+                    </div>`;
+
+                $('#modalVerProducto').modal('show');
+            },
+            error: function (xhr) {
+                Swal.fire('Error', 'Error al cargar el producto. Código: ' + xhr.status, 'error');
+                console.error(xhr);
+            }
+        });
+    };
+})();
 </script>
 @stop

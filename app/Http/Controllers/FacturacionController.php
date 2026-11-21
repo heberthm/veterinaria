@@ -2,367 +2,259 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Factura;
-use App\Models\FacturaDetalle;
-use App\Models\FacturaPago;
-use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\Venta;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\Facades\DataTables;
 
+/**
+ * Facturas = listado de CONSULTA de las ventas hechas en el POS.
+ * No crea ni modifica facturas: solo lista, muestra el detalle e imprime.
+ */
 class FacturacionController extends Controller
 {
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:ver_facturas')->only(['index', 'show', 'detalle']);
-        $this->middleware('permission:crear_facturas')->only(['create', 'store']);
-        $this->middleware('permission:editar_facturas')->only(['edit', 'update']);
-        $this->middleware('permission:eliminar_facturas')->only(['destroy']);
     }
 
-    /**
-     * Mostrar lista de facturas
-     */
-    public function index()
+    private function tenantId()
     {
-        return view('facturas');
+        return (int) (auth()->user()->tenant_id ?? 1);
     }
 
-    /**
-     * DataTable para facturas
-     */
-    public function datatable(Request $request)
+    /** Columna donde la venta guarda el número de factura (numero_factura o consecutivo). */
+    private function columnaNumero(): ?string
     {
-        $facturas = Factura::with(['cliente', 'usuario'])
-            ->where('tenant_id', auth()->user()->tenant_id ?? null);
-
-        return DataTables::of($facturas)
-            ->addColumn('cliente_nombre', function($factura) {
-                return $factura->cliente->nombres . ' ' . $factura->cliente->apellidos;
-            })
-            ->addColumn('fecha_emision_formato', function($factura) {
-                return $factura->fecha_emision->format('d/m/Y');
-            })
-            ->addColumn('estado_badge', function($factura) {
-                $estados = [
-                    'pendiente' => 'warning',
-                    'pagada' => 'success',
-                    'anulada' => 'danger',
-                    'vencida' => 'dark'
-                ];
-                return '<span class="badge badge-' . ($estados[$factura->estado] ?? 'secondary') . '">' 
-                    . Factura::ESTADOS[$factura->estado] . '</span>';
-            })
-            ->addColumn('total_formateado', function($factura) {
-                return '$ ' . number_format($factura->total, 0, ',', '.');
-            })
-            ->addColumn('saldo_formateado', function($factura) {
-                return '$ ' . number_format($factura->saldo, 0, ',', '.');
-            })
-            ->addColumn('acciones', function($factura) {
-                return '
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-primary btn-accion" onclick="verFactura(' . $factura->id . ')" title="Ver detalle">
-                            <i class="fas fa-eye"></i>
-                        </button>
-                        <button class="btn btn-success btn-accion" onclick="registrarPago(' . $factura->id . ')" title="Registrar pago">
-                            <i class="fas fa-money-bill-wave"></i>
-                        </button>
-                        <button class="btn btn-danger btn-accion" onclick="eliminarFactura(' . $factura->id . ')" title="Eliminar">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                ';
-            })
-            ->rawColumns(['estado_badge', 'acciones'])
-            ->make(true);
-    }
-
-    /**
-     * Mostrar formulario de creación (modal)
-     */
-    public function create(Request $request)
-    {
-        $clientes = Cliente::where('tenant_id', auth()->user()->tenant_id ?? null)
-            ->where('activo', true)
-            ->get();
-        
-        $productos = Producto::where('tenant_id', auth()->user()->tenant_id ?? null)
-            ->where('stock', '>', 0)
-            ->get();
-
-        $ventaId = $request->get('venta_id', null);
-        $venta = null;
-        $clienteId = null;
-
-        if ($ventaId) {
-            $venta = Venta::with(['cliente', 'detalles'])->find($ventaId);
-            if ($venta) {
-                $clienteId = $venta->cliente_id;
+        $tabla = (new Venta)->getTable();
+        foreach (['numero_factura', 'consecutivo'] as $col) {
+            if (Schema::hasColumn($tabla, $col)) {
+                return $col;
             }
         }
-
-        return view('modales.factura-form', compact('clientes', 'productos', 'venta', 'ventaId', 'clienteId'));
+        return null;
     }
 
-    /**
-     * Guardar nueva factura
-     */
-    public function store(Request $request)
+    /** Columna de fecha de la venta (fecha o created_at). */
+    private function columnaFecha(): string
     {
-        $validator = Validator::make($request->all(), [
-            'cliente_id' => 'required|exists:clientes,id',
-            'fecha_emision' => 'required|date',
-            'fecha_vencimiento' => 'nullable|date|after_or_equal:fecha_emision',
-            'tipo' => 'required|in:venta,servicio,consulta,proforma',
-            'productos' => 'required|array|min:1',
-            'productos.*.id' => 'required|exists:productos,id',
-            'productos.*.cantidad' => 'required|numeric|min:0.01',
-            'productos.*.precio' => 'required|numeric|min:0',
-            'observaciones' => 'nullable|string',
-        ]);
+        return Schema::hasColumn((new Venta)->getTable(), 'fecha') ? 'fecha' : 'created_at';
+    }
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $subtotal = 0;
-        $iva = 0;
-        $total = 0;
-
-        // Calcular totales
-        foreach ($request->productos as $item) {
-            $subtotal += $item['precio'] * $item['cantidad'];
-        }
-
-        $iva = $subtotal * 0.19;
-        $total = $subtotal + $iva;
-
-        // Crear factura
-        $factura = Factura::create([
-            'tenant_id' => auth()->user()->tenant_id ?? null,
-            'cliente_id' => $request->cliente_id,
-            'venta_id' => $request->venta_id ?? null,
-            'numero_factura' => Factura::generarNumeroFactura(),
-            'fecha_emision' => $request->fecha_emision,
-            'fecha_vencimiento' => $request->fecha_vencimiento,
-            'tipo' => $request->tipo,
-            'estado' => 'pendiente',
-            'subtotal' => $subtotal,
-            'iva' => $iva,
-            'descuento' => 0,
-            'total' => $total,
-            'abonado' => 0,
-            'saldo' => $total,
-            'observaciones' => $request->observaciones,
-            'usuario_id' => auth()->id(),
-        ]);
-
-        // Crear detalles
-        foreach ($request->productos as $item) {
-            $producto = Producto::find($item['id']);
-            $precio = $item['precio'];
-            $cantidad = $item['cantidad'];
-            $subtotalItem = $precio * $cantidad;
-            $ivaItem = $subtotalItem * 0.19;
-            $totalItem = $subtotalItem + $ivaItem;
-
-            FacturaDetalle::create([
-                'factura_id' => $factura->id,
-                'producto_id' => $item['id'],
-                'descripcion' => $producto->nombre,
-                'cantidad' => $cantidad,
-                'precio_unitario' => $precio,
-                'descuento' => 0,
-                'iva' => $ivaItem,
-                'total' => $totalItem,
-                'tipo' => 'producto',
-            ]);
-
-            // Actualizar stock
-            $producto->stock -= $cantidad;
-            $producto->save();
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Factura creada exitosamente',
-            'factura' => $factura
-        ]);
+    private function numeroDe($venta): string
+    {
+        return (string) ($venta->numero_factura ?? $venta->consecutivo ?? $venta->id);
     }
 
     /**
-     * Mostrar detalle de factura (modal)
+     * Nombre del vendedor: primero el guardado en la venta (vendedor_nombre);
+     * si es una venta antigua, se busca por el id (usuario_id o usurio_id) en users.
      */
+    private array $cacheVendedores = [];
+
+    private function vendedorDe($venta): ?string
+    {
+        if (!empty($venta->vendedor_nombre)) {
+            return $venta->vendedor_nombre;
+        }
+
+        $id = $venta->usuario_id ?? $venta->usurio_id ?? null;
+        if (!$id) {
+            return null;
+        }
+        if (!array_key_exists($id, $this->cacheVendedores)) {
+            $this->cacheVendedores[$id] = DB::table('users')->where('id', $id)->value('name');
+        }
+        return $this->cacheVendedores[$id];
+    }
+
+    private function metodoLabel($metodo): string
+    {
+        $metodos = [
+            'efectivo' => 'Efectivo', 'tarjeta' => 'Tarjeta', 'tarjeta_credito' => 'Tarjeta Crédito',
+            'tarjeta_debito' => 'Tarjeta Débito', 'transferencia' => 'Transferencia', 'mixto' => 'Mixto',
+            'nequi' => 'Nequi', 'daviplata' => 'Daviplata',
+        ];
+        return $metodos[$metodo] ?? ($metodo ? ucfirst(str_replace('_', ' ', $metodo)) : '—');
+    }
+
+    // ------------------------------------------------------------------
+    // Pantalla
+    // ------------------------------------------------------------------
+    public function index()
+    {
+        // Acepta resources/views/facturas.blade.php o resources/views/facturas/index.blade.php
+        return view()->first(['facturas', 'facturas.index']);
+    }
+
+    // ------------------------------------------------------------------
+    // DataTable
+    // ------------------------------------------------------------------
+    public function datatable(Request $request)
+    {
+        $tabla    = (new Venta)->getTable();
+        $colNum   = $this->columnaNumero();
+        $colFecha = $this->columnaFecha();
+
+        $query = Venta::query()
+            ->with(['cliente'])
+            ->where("{$tabla}.tenant_id", $this->tenantId());
+
+        // Filtros de la pantalla
+        if ($request->filled('desde')) {
+            $query->whereDate("{$tabla}.{$colFecha}", '>=', $request->desde);
+        }
+        if ($request->filled('hasta')) {
+            $query->whereDate("{$tabla}.{$colFecha}", '<=', $request->hasta);
+        }
+        if ($request->filled('estado')) {
+            $estado = $request->estado;
+            $query->whereIn("{$tabla}.estado", $estado === 'pagada' ? ['pagada', 'completada'] : [$estado]);
+        }
+
+        $dt = DataTables::of($query)
+            // Búsqueda propia: número de factura, cliente (nombre o documento) y vendedor
+            ->filter(function ($q) use ($request, $colNum, $tabla) {
+                $s = trim((string) data_get($request->input('search'), 'value', ''));
+                if ($s === '') {
+                    return;
+                }
+                $q->where(function ($w) use ($s, $colNum, $tabla) {
+                    if ($colNum) {
+                        $w->orWhere("{$tabla}.{$colNum}", 'like', "%{$s}%");
+                    }
+                    if (Schema::hasColumn($tabla, 'vendedor_nombre')) {
+                        $w->orWhere("{$tabla}.vendedor_nombre", 'like', "%{$s}%");
+                    }
+                    $w->orWhereHas('cliente', function ($c) use ($s) {
+                        $c->where('nombres', 'like', "%{$s}%")
+                          ->orWhere('apellidos', 'like', "%{$s}%")
+                          ->orWhere('numero_documento', 'like', "%{$s}%");
+                    });
+                });
+            })
+            ->addColumn('numero_factura', fn ($v) => e($this->numeroDe($v)))
+            ->addColumn('cliente_nombre', function ($v) {
+                return $v->cliente
+                    ? e(trim($v->cliente->nombres . ' ' . $v->cliente->apellidos))
+                    : 'Consumidor Final';
+            })
+            ->addColumn('vendedor', fn ($v) => e($this->vendedorDe($v) ?? '—'))
+            ->addColumn('fecha_formato', function ($v) use ($colFecha) {
+                $f = $v->{$colFecha} ?? $v->created_at;
+                return $f ? \Carbon\Carbon::parse($f)->format('d/m/Y H:i') : '—';
+            })
+            ->addColumn('metodo_pago_label', fn ($v) => e($this->metodoLabel($v->metodo_pago ?? null)))
+            ->addColumn('total_formateado', fn ($v) => '$ ' . number_format((float) $v->total, 0, ',', '.'))
+            ->addColumn('estado_badge', function ($v) {
+                $estado = strtolower((string) $v->estado);
+                $colores = ['pendiente' => 'warning', 'completada' => 'success', 'pagada' => 'success', 'anulada' => 'danger'];
+                $label = $estado === 'completada' ? 'Pagada' : ucfirst($estado ?: '—');
+                return '<span class="badge badge-' . ($colores[$estado] ?? 'secondary') . '">' . e($label) . '</span>';
+            })
+            ->rawColumns(['estado_badge']);
+
+        // Orden de las columnas calculadas → columna real de la tabla
+        if ($colNum) {
+            $dt->orderColumn('numero_factura', "{$colNum} $1");
+        }
+        $dt->orderColumn('fecha_formato', "{$colFecha} $1");
+        $dt->orderColumn('total_formateado', 'total $1');
+
+        return $dt->make(true);
+    }
+
+    // ------------------------------------------------------------------
+    // Detalle (JSON para la ventana modal)
+    // ------------------------------------------------------------------
     public function detalle($id)
     {
-        $factura = Factura::with(['cliente', 'usuario', 'detalles.producto', 'pagos'])
+        $venta = Venta::with(['cliente'])
+            ->where('tenant_id', $this->tenantId())
             ->findOrFail($id);
 
-        return view('modales.factura-detalle', compact('factura'));
-    }
+        $lineas = $this->lineas($venta);
+        $subtotal = collect($lineas)->sum('subtotal');
 
-    /**
-     * Mostrar formulario de edición
-     */
-    public function edit($id)
-    {
-        $factura = Factura::with(['detalles'])->findOrFail($id);
-        $clientes = Cliente::where('tenant_id', auth()->user()->tenant_id ?? null)->get();
-        $productos = Producto::where('tenant_id', auth()->user()->tenant_id ?? null)->get();
-
-        return view('facturas-editar', compact('factura', 'clientes', 'productos'));
-    }
-
-    /**
-     * Actualizar factura
-     */
-    public function update(Request $request, $id)
-    {
-        $factura = Factura::findOrFail($id);
-
-        $validator = Validator::make($request->all(), [
-            'cliente_id' => 'required|exists:clientes,id',
-            'fecha_emision' => 'required|date',
-            'fecha_vencimiento' => 'nullable|date|after_or_equal:fecha_emision',
-            'tipo' => 'required|in:venta,servicio,consulta,proforma',
-            'estado' => 'required|in:pendiente,pagada,anulada,vencida',
-            'observaciones' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $factura->update($request->only([
-            'cliente_id', 'fecha_emision', 'fecha_vencimiento', 
-            'tipo', 'estado', 'observaciones'
-        ]));
+        $estado = strtolower((string) $venta->estado);
+        $fecha  = $venta->{$this->columnaFecha()} ?? $venta->created_at;
 
         return response()->json([
             'success' => true,
-            'message' => 'Factura actualizada exitosamente'
+            'factura' => [
+                'id'             => $venta->id,
+                'numero_factura' => $this->numeroDe($venta),
+                'fecha_emision'  => $fecha ? \Carbon\Carbon::parse($fecha)->format('Y-m-d H:i') : null,
+                'tipo'           => 'Venta POS',
+                'estado'         => $estado === 'completada' ? 'pagada' : $estado,
+                'metodo_pago'    => $this->metodoLabel($venta->metodo_pago ?? null),
+                'vendedor'       => $this->vendedorDe($venta),
+                'observaciones'  => $venta->observacion ?? $venta->observaciones ?? null,
+                'subtotal'       => (float) ($venta->subtotal ?? $subtotal),
+                'descuento'      => (float) ($venta->descuento_valor ?? 0),
+                'iva'            => (float) ($venta->iva_valor ?? 0),
+                'total'          => (float) $venta->total,
+                'saldo'          => 0,
+                'cliente'        => $venta->cliente ? [
+                    'nombres'          => $venta->cliente->nombres,
+                    'apellidos'        => $venta->cliente->apellidos,
+                    'numero_documento' => $venta->cliente->numero_documento ?? null,
+                    'celular'          => $venta->cliente->celular ?? null,
+                ] : null,
+                'detalles'       => $lineas,
+            ],
         ]);
     }
 
-    /**
-     * Eliminar factura
-     */
-    public function destroy($id)
+    /** Líneas de la venta, tolerando distintos nombres de tabla/columnas. */
+    private function lineas(Venta $venta): array
     {
-        $factura = Factura::findOrFail($id);
-
-        if ($factura->estado === 'pagada') {
-            return response()->json([
-                'success' => false,
-                'message' => 'No se puede eliminar una factura pagada'
-            ], 422);
-        }
-
-        // Revertir stock de productos
-        foreach ($factura->detalles as $detalle) {
-            if ($detalle->producto_id) {
-                $producto = Producto::find($detalle->producto_id);
-                if ($producto) {
-                    $producto->stock += $detalle->cantidad;
-                    $producto->save();
+        try {
+            $filas = $venta->detalles()->get();
+        } catch (\Throwable $e) {
+            $filas = collect();
+            foreach (['ventadetalle', 'venta_detalles', 'venta_items'] as $t) {
+                if (Schema::hasTable($t)) {
+                    $filas = DB::table($t)->where('venta_id', $venta->id)->get();
+                    break;
                 }
             }
         }
 
-        $factura->detalles()->delete();
-        $factura->pagos()->delete();
-        $factura->delete();
+        return collect($filas)->map(function ($d) {
+            $d = (object) (is_object($d) && method_exists($d, 'getAttributes') ? $d->getAttributes() : (array) $d);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Factura eliminada exitosamente'
-        ]);
+            $cant   = (float) ($d->cantidad ?? 1);
+            $precio = (float) ($d->precio_unitario ?? $d->precio ?? 0);
+            $nombre = $d->nombre_producto ?? $d->descripcion ?? null;
+            if (!$nombre && !empty($d->producto_id)) {
+                $nombre = optional(Producto::find($d->producto_id))->nombre;
+            }
+
+            return [
+                'descripcion'     => $nombre ?: 'Producto',
+                'cantidad'        => $cant,
+                'precio_unitario' => $precio,
+                'iva_porcentaje'  => (float) ($d->iva_porcentaje ?? 0),
+                'subtotal'        => (float) ($d->subtotal ?? $d->total ?? ($cant * $precio)),
+            ];
+        })->values()->all();
     }
 
-    /**
-     * Registrar pago
-     */
-    public function registrarPago(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'monto' => 'required|numeric|min:0.01',
-            'metodo_pago' => 'required|in:efectivo,tarjeta_credito,tarjeta_debito,transferencia,nequi,daviplata,qr',
-            'referencia' => 'nullable|string|max:100',
-            'observaciones' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $factura = Factura::findOrFail($id);
-
-        if ($factura->estaPagada()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'La factura ya está pagada'
-            ], 422);
-        }
-
-        $monto = $request->monto;
-        $saldoRestante = $factura->calcularSaldo();
-
-        if ($monto > $saldoRestante) {
-            return response()->json([
-                'success' => false,
-                'message' => 'El monto excede el saldo pendiente'
-            ], 422);
-        }
-
-        // Registrar pago
-        $pago = $factura->registrarPago(
-            $monto,
-            $request->metodo_pago,
-            $request->referencia,
-            $request->observaciones
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pago registrado exitosamente',
-            'pago' => $pago,
-            'saldo_restante' => $factura->saldo
-        ]);
-    }
-
-    /**
-     * Descargar PDF de factura
-     */
+    // ------------------------------------------------------------------
+    // PDF (se abre en otra pestaña para imprimir)
+    // ------------------------------------------------------------------
     public function generarPDF($id)
     {
-        $factura = Factura::with(['cliente', 'usuario', 'detalles.producto', 'pagos'])
+        $venta = Venta::with(['cliente', 'mascota', 'usuario', 'detalles.producto'])
+            ->where('tenant_id', $this->tenantId())
             ->findOrFail($id);
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('facturas-pdf', compact('factura'));
-        return $pdf->download('factura-' . $factura->numero_factura . '.pdf');
-    }
+       $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf-facturas', compact('venta'))
+            ->setPaper('letter');
 
-    /**
-     * Obtener datos de factura para edición
-     */
-    public function show($id)
-    {
-        $factura = Factura::with(['cliente', 'detalles.producto', 'pagos'])
-            ->findOrFail($id);
-        return response()->json($factura);
+        return $pdf->stream('factura-' . $this->numeroDe($venta) . '.pdf');
     }
 }

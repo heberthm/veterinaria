@@ -25,11 +25,20 @@ class VentaController extends Controller
     }
 
     /**
+     * Tenant del usuario. Si el usuario no tiene tenant_id (NULL) se usa 1,
+     * igual que el seeder; así pos(), store(), clientes y listados ven los mismos datos.
+     */
+    private function tenantId(): int
+    {
+        return (int) (auth()->user()->tenant_id ?? 1);
+    }
+
+    /**
      * Mostrar punto de venta (POS)
      */
     public function pos()
     {
-        $tenantId = auth()->user()->tenant_id ?? null;
+        $tenantId = $this->tenantId();
 
         // ============================================================
         // CAJA ACTUAL
@@ -91,6 +100,26 @@ class VentaController extends Controller
             'categorias',
             'siguienteConsecutivo'
         ))->with('prefijoFactura', $this->prefijoFactura());
+    }
+
+    /**
+     * Instancia de VentaDetalle apuntando a la tabla que realmente existe
+     * (ventadetalle, venta_detalles o venta_items).
+     */
+    private function nuevoDetalle(): VentaDetalle
+    {
+        $detalle = new VentaDetalle;
+
+        if (!Schema::hasTable($detalle->getTable())) {
+            foreach (['ventadetalle', 'venta_detalles', 'venta_items'] as $tabla) {
+                if (Schema::hasTable($tabla)) {
+                    $detalle->setTable($tabla);
+                    break;
+                }
+            }
+        }
+
+        return $detalle;
     }
 
     /**
@@ -193,7 +222,7 @@ class VentaController extends Controller
         // ============================================================
         // VERIFICAR CAJA ABIERTA
         // ============================================================
-        $tenantId = auth()->user()->tenant_id ?? null;
+        $tenantId = $this->tenantId();
 
         $caja = Caja::where('tenant_id', $tenantId)
             ->where('estado', 'abierta')
@@ -234,7 +263,8 @@ class VentaController extends Controller
 
             // Se envían los nombres de la migración (usurio_id, descuento_valor, iva_valor, observacion...)
             // y los alternos; soloColumnas() conserva únicamente los que existen en la tabla.
-            $venta = Venta::create($this->soloColumnas(new Venta, [
+            $venta = new Venta;
+            $venta->forceFill($this->soloColumnas($venta, [
                 'tenant_id' => $tenantId,
                 'caja_id' => $caja->id,
                 ($this->columnaFactura() ?? 'consecutivo') => $consecutivo,
@@ -242,6 +272,7 @@ class VentaController extends Controller
                 'mascota_id' => $request->mascota_id,
                 'usurio_id' => auth()->id(),   // así se llama la columna en la migración
                 'usuario_id' => auth()->id(),
+                'vendedor_nombre' => auth()->user()->name ?? null,   // nombre del vendedor al momento de la venta
                 'subtotal' => $subtotal,
                 'descuento_porcentaje' => $descuentoPorcentaje,
                 'descuento_valor' => $descuento,
@@ -259,11 +290,12 @@ class VentaController extends Controller
                 'monto_efectivo' => $request->monto_efectivo,
                 'monto_otro' => $request->monto_otro,
                 'cambio' => $request->cambio,
-            ]));
+            ]))->save();
 
             // ============================================================
             // CREAR DETALLES Y ACTUALIZAR STOCK
             // ============================================================
+            $tablaDetalle = null;
             foreach ($request->productos as $item) {
                 $producto = Producto::find($item['id']);
 
@@ -274,7 +306,9 @@ class VentaController extends Controller
                 $subtotalItem = $item['precio'] * $item['cantidad'];
                 $ivaItem = $subtotalItem * ($ivaPct / 100);
 
-                VentaDetalle::create($this->soloColumnas(new VentaDetalle, [
+                $detalle = $this->nuevoDetalle();
+                $tablaDetalle = $detalle->getTable();
+                $detalle->forceFill($this->soloColumnas($detalle, [
                     'venta_id' => $venta->id,
                     'producto_id' => $producto->id,
                     'nombre_producto' => $producto->nombre,
@@ -284,7 +318,7 @@ class VentaController extends Controller
                     'subtotal' => $subtotalItem,
                     'iva' => $ivaItem,
                     'total' => $subtotalItem + $ivaItem,
-                ]));
+                                ]))->save();
 
                 // Descontar stock solo si es producto
                 if ($producto->tipo === 'producto' || $producto->tipo === null) {
@@ -310,7 +344,8 @@ class VentaController extends Controller
                 ->orderBy('fecha_apertura', 'desc')
                 ->first();
 
-            CajaMovimiento::create($this->soloColumnas(new CajaMovimiento, [
+            $movimiento = new CajaMovimiento;
+            $movimiento->forceFill($this->soloColumnas($movimiento, [
                 'caja_id' => $caja->id,
                 'caja_apertura_id' => $apertura ? $apertura->id : null,
                 'usuario_id' => auth()->id(),
@@ -323,7 +358,7 @@ class VentaController extends Controller
                 'metodo_pago' => $request->metodo_pago ?? 'efectivo',
                 'referencia' => $request->referencia_pago,
                 'descripcion' => 'Venta #' . ($venta->numero_factura ?? $venta->consecutivo ?? $venta->id),
-            ]));
+            ]))->save();
 
             DB::commit();
 
@@ -332,6 +367,9 @@ class VentaController extends Controller
                 'message' => 'Venta registrada exitosamente',
                 'venta' => $venta->fresh(),
                 'numero' => $venta->numero_factura ?? $venta->consecutivo ?? null,
+                'tabla_ventas' => $venta->getTable(),
+                'detalle_tabla' => $tablaDetalle,
+                'lineas' => count($request->productos),
                 'total' => $total,
             ]);
 
@@ -350,7 +388,7 @@ class VentaController extends Controller
     public function buscarClientes(Request $request)
     {
         $query = $request->get('q', '');
-        $tenantId = auth()->user()->tenant_id ?? null;
+        $tenantId = $this->tenantId();
 
         $clientes = Cliente::where('tenant_id', $tenantId)
             ->where('activo', true)
@@ -374,7 +412,7 @@ class VentaController extends Controller
     {
         $query = $request->get('q', '');
         $clienteId = $request->get('cliente_id');
-        $tenantId = auth()->user()->tenant_id ?? null;
+        $tenantId = $this->tenantId();
 
         $mascotas = Mascota::whereHas('cliente', function($q) use ($tenantId) {
                 $q->where('tenant_id', $tenantId);
@@ -409,7 +447,7 @@ class VentaController extends Controller
     public function datatable(Request $request)
     {
         $ventas = Venta::with(['cliente', 'usuario'])
-            ->where('tenant_id', auth()->user()->tenant_id ?? null);
+            ->where('tenant_id', $this->tenantId());
 
         return DataTables::of($ventas)
             ->addColumn('cliente_nombre', function($venta) {

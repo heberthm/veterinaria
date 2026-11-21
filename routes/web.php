@@ -18,8 +18,9 @@ use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\CajaController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\VeterinarioController;
 use App\Http\Controllers\VacunacionController;
-use App\Http\Controllers\DesparasitacionController;
+use App\Http\Controllers\DesparasitacionAplicacionController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -84,6 +85,8 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
   Route::get('agenda/eventos', [AgendaController::class, 'eventos'])->name('agenda.eventos');
   Route::post('agenda/citas', [AgendaController::class, 'store'])->name('agenda.citas.store');
   Route::put('agenda/citas/{cita}', [AgendaController::class, 'update'])->name('agenda.citas.update');
+  Route::put('/agenda/citas/{id}', [AgendaController::class, 'update'])->name('agenda.citas.update');
+
   Route::patch('agenda/citas/{cita}/estado', [AgendaController::class, 'cambiarEstado'])->name('agenda.citas.estado');
   Route::patch('agenda/citas/{id}/mover', [AgendaController::class, 'mover'])->name('agenda.citas.mover');
   Route::delete('agenda/citas/{cita}', [AgendaController::class, 'destroy'])->name('agenda.citas.destroy');
@@ -118,6 +121,7 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
     Route::get('/clientes/{id}/mascotas', [ClienteController::class, 'mascotas'])->name('clientes.mascotas');
     Route::get('/clientes/{id}/detalle', [ClienteController::class, 'detalle'])->name('clientes.detalle');
+    
 
     /*
     |--------------------------------------------------------------------------
@@ -127,7 +131,8 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::get('/mascotas', [MascotaController::class, 'index'])->name('mascotas');
     Route::get('/mascotas/datatable', [MascotaController::class, 'datatable'])->name('mascotas.datatable');
     Route::post('/mascotas', [MascotaController::class, 'store'])->name('mascotas.store');
-     Route::put('/mascotas/{id}', [MascotaController::class, 'update'])->name('mascotas.update');
+    Route::get('/mascotas/buscar', [MascotaController::class, 'buscar'])->name('mascotas.buscar');
+    Route::put('/mascotas/{id}', [MascotaController::class, 'update'])->name('mascotas.update');
     Route::get('/mascotas/{id}/edit',  [MascotaController::class, 'edit'])->name('mascotas.edit');  
     Route::delete('/mascotas/{id}', [MascotaController::class, 'destroy'])->name('mascotas.destroy');
     Route::get('/mascotas/{id}/detalle', [MascotaController::class, 'detalle'])->name('mascotas.detalle');
@@ -172,11 +177,14 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::get('/vacunas/datatable', [VacunacionController::class, 'datatable'])->name('vacunas.datatable');
     Route::get('/vacunas/crear', [VacunacionController::class, 'create'])->name('vacunas.crear');
     Route::post('/vacunas', [VacunacionController::class, 'store'])->name('vacunas.store');
-    Route::get('/vacunas/{id}/detalle', [VacunacionController::class, 'detalle'])->name('vacunas.detalle');
+    Route::get('/vacunas/{id}/detalle', [VacunacionController::class, 'show'])->name('vacunas.show');
     Route::get('/vacunas/{id}/editar', [VacunacionController::class, 'edit'])->name('vacunas.editar');
     Route::put('/vacunas/{id}', [VacunacionController::class, 'update'])->name('vacunas.update');
     Route::delete('/vacunas/{id}', [VacunacionController::class, 'destroy'])->name('vacunas.destroy');
     Route::get('/vacunas/mascota/{mascotaId}', [VacunacionController::class, 'getByMascota'])->name('vacunas.mascota');
+
+    Route::get('/vacunas/{id}/detalle', [VacunacionController::class, 'show'])->name('vacunas.show');
+
 
      /*
     |--------------------------------------------------------------------------
@@ -196,11 +204,12 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     | DESPARASITACIÓN
     |--------------------------------------------------------------------------
     */
-Route::post('/mascotas/{mascota}/aplicaciones/vacuna', [AplicacionMascotaController::class, 'storeVacuna'])->name('aplicaciones.vacuna.store');
-Route::post('/mascotas/{mascota}/aplicaciones/desparasitacion', [AplicacionMascotaController::class, 'storeDesparasitacion'])->name('aplicaciones.desparasitacion.store');
-Route::delete('/aplicaciones/vacuna/{aplicacion}', [AplicacionMascotaController::class, 'destroyVacuna'])->name('aplicaciones.vacuna.destroy');
-Route::delete('/aplicaciones/desparasitacion/{aplicacion}', [AplicacionMascotaController::class, 'destroyDesparasitacion'])->name('aplicaciones.desparasitacion.destroy');
-
+    Route::get('/desparasitaciones', [DesparasitacionAplicacionController::class, 'index'])->name('desparasitaciones.index');
+    Route::get('/desparasitaciones/datatable', [DesparasitacionAplicacionController::class, 'datatable'])->name('desparasitaciones.datatable');
+    Route::post('/desparasitaciones', [DesparasitacionAplicacionController::class, 'store'])->name('desparasitaciones.store');
+    Route::put('/desparasitaciones/{id}', [DesparasitacionAplicacionController::class, 'update'])->name('desparasitaciones.update');
+    Route::get('/desparasitaciones/{id}/detalle', [DesparasitacionAplicacionController::class, 'detalle'])->name('desparasitaciones.detalle');
+    Route::delete('/desparasitaciones/{id}', [DesparasitacionAplicacionController::class, 'destroy'])->name('desparasitaciones.destroy');
     /*
     |--------------------------------------------------------------------------
     | Productos - CRUD con modales
@@ -218,6 +227,14 @@ Route::delete('/aplicaciones/desparasitacion/{aplicacion}', [AplicacionMascotaCo
     Route::get('/productos/{id}/detalle', [ProductoController::class, 'detalle'])->name('productos.detalle');
   */
 
+     /*
+    |--------------------------------------------------------------------------
+    | Veterinarios
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/veterinarios/buscar', [VeterinarioController::class, 'buscar'])->name('veterinarios.buscar');
+    
    
     /*
     |--------------------------------------------------------------------------
@@ -250,6 +267,7 @@ Route::delete('/aplicaciones/desparasitacion/{aplicacion}', [AplicacionMascotaCo
     Route::get('/facturas/{id}/pago', [App\Http\Controllers\FacturacionController::class, 'pago'])->name('facturas.pago');
     Route::post('/facturas/{id}/pago', [App\Http\Controllers\FacturacionController::class, 'registrarPago'])->name('facturas.registrarPago');
     Route::get('/facturas/{id}/pdf', [App\Http\Controllers\FacturacionController::class, 'generarPDF'])->name('facturas.pdf');
+    
 
 
      /*

@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+      if (!Schema::hasTable('categorias_productos')) {  
         Schema::create('ventadetalle', function (Blueprint $table) {
             $table->id();
 
@@ -34,7 +35,7 @@ return new class extends Migration
             $table->index('producto_id');
         });
     }
-
+ }
     public function down(): void
     {
         Schema::dropIfExists('ventadetalle');

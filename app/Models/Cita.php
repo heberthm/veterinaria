@@ -68,7 +68,7 @@ class Cita extends Model
 
     public function veterinario()
     {
-        return $this->belongsTo(User::class, 'veterinario_id');
+        return $this->belongsTo(Veterinario::class, 'veterinario_id');
     }
 
     public function sede()  { return $this->belongsTo(Sede::class); }

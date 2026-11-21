@@ -319,7 +319,7 @@ return [
 
     ['text' => 'Ventas / POS', 'route' => 'ventas.pos', 'icon' => 'fas fa-fw fa-shopping-cart'],
 
-    ['text' => 'Facturación', 'route' => 'facturas', 'icon' => 'fas fa-fw fa-file-invoice-dollar'],
+    ['text' => 'Facturas', 'route' => 'facturas', 'icon' => 'fas fa-fw fa-file-invoice-dollar'],
 
     ['text' => 'Caja', 'route' => 'caja', 'icon' => 'fas fa-fw fa-cash-register'],
 

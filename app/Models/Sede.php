@@ -20,5 +20,5 @@ class Sede extends Model
     public function citas()
     {
         return $this->hasMany(Cita::class);
-    }
+    } 
 }

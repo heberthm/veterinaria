@@ -241,6 +241,115 @@
     </div>
 </div>
 
+{{-- MODAL EDITAR MASCOTA --}}
+<div class="modal fade" id="modal-editar-mascota" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-white">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Mascota</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="form-editar-mascota">
+                    <input type="hidden" id="edit_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Nombre</label>
+                                <input type="text" id="edit_nombre" name="nombre" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Especie</label>
+                                <select id="edit_especie" name="especie" class="form-control" required>
+                                    <option value="perro">Perro</option>
+                                    <option value="gato">Gato</option>
+                                    <option value="ave">Ave</option>
+                                    <option value="roedor">Roedor</option>
+                                    <option value="reptil">Reptil</option>
+                                    <option value="equino">Equino</option>
+                                    <option value="bovino">Bovino</option>
+                                    <option value="porcino">Porcino</option>
+                                    <option value="conejo">Conejo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Raza</label>
+                                <input type="text" id="edit_raza" name="raza" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Color</label>
+                                <input type="text" id="edit_color" name="color" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Género</label>
+                                <select id="edit_genero" name="genero" class="form-control" required>
+                                    <option value="macho">Macho</option>
+                                    <option value="hembra">Hembra</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Peso (kg)</label>
+                                <input type="number" id="edit_peso" name="peso" class="form-control" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>Fecha Nacimiento</label>
+                                <input type="date" id="edit_fecha_nacimiento" name="fecha_nacimiento" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Número de Chip</label>
+                                <input type="text" id="edit_numero_chip" name="numero_chip" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Estado</label>
+                                <select id="edit_estado" name="estado" class="form-control" required>
+                                    <option value="activo">Activo</option>
+                                    <option value="inactivo">Inactivo</option>
+                                    <option value="fallecido">Fallecido</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {{-- Oculto para guardar el cliente --}}
+                    <input type="hidden" id="edit_cliente_id" name="cliente_id">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-warning" onclick="actualizarMascota()"><i class="fas fa-save"></i> Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ============================================================ --}}
 {{-- MODAL DETALLE DE MASCOTA --}}
 {{-- ============================================================ --}}
@@ -513,84 +622,69 @@
 $(document).ready(function () {
  
     // ============================================================
-// 🔥 SELECT2 CON BÚSQUEDA AJAX — PROPIETARIOS
-// ============================================================
-if ($.fn.select2) {
-    $('#cliente_id_select').select2({
-        
-        width: '100%',
-         dropdownParent: $('#modal-mascota'),
-        placeholder: 'Buscar por nombre, documento o celular...',
-        allowClear: true,
-        minimumInputLength: 2,              // 👈 busca desde 2 caracteres
-      
-        ajax: {
-            url: "{{ route('clientes.buscar') }}",
-            dataType: 'json',
-            delay: 300,                      // 👈 espera 300ms antes de buscar
-            data: function (params) {
-                return {
-                    q: params.term,          // 👈 término de búsqueda
-                    page: params.page || 1,
-                };
+    // 🔥 SELECT2 CON BÚSQUEDA AJAX — PROPIETARIOS
+    // ============================================================
+    if ($.fn.select2) {
+        $('#cliente_id_select').select2({
+            width: '100%',
+            dropdownParent: $('#modal-mascota'),
+            placeholder: 'Buscar por nombre, documento o celular...',
+            allowClear: true,
+            minimumInputLength: 2,
+            ajax: {
+                url: "{{ route('clientes.buscar') }}",
+                dataType: 'json',
+                delay: 300,
+                data: function (params) {
+                    return {
+                        q: params.term,
+                        page: params.page || 1,
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.results,
+                        pagination: {
+                            more: false,
+                        },
+                    };
+                },
+                cache: true,
             },
-            processResults: function (data, params) {
-                params.page = params.page || 1;
+            language: {
+                inputTooShort: function () { return 'Escribe al menos 2 caracteres...'; },
+                noResults: function () { return 'No se encontraron propietarios'; },
+                searching: function () { return 'Buscando...'; },
+                errorLoading: function () { return 'Error al cargar resultados'; },
+            },
+            templateResult: function (cliente) {
+                if (cliente.loading) return cliente.text;
+                return $(
+                    `<div>
+                        <i class="fas fa-user text-primary mr-2"></i>
+                        <strong>${cliente.text}</strong>
+                    </div>`
+                );
+            },
+            templateSelection: function (cliente) {
+                if (!cliente.id) return cliente.text;
+                return cliente.text;
+            },
+        });
+    }
 
-                return {
-                    results: data.results,   // 👈 array { id, text }
-                    pagination: {
-                        more: false,         // o true si implementas paginación
-                    },
-                };
-            },
-            cache: true,
-        },
-        language: {
-            inputTooShort: function () {
-                return 'Escribe al menos 2 caracteres...';
-            },
-            noResults: function () {
-                return 'No se encontraron propietarios';
-            },
-            searching: function () {
-                return 'Buscando...';
-            },
-            errorLoading: function () {
-                return 'Error al cargar resultados';
-            },
-        },
-        templateResult: function (cliente) {
-            if (cliente.loading) return cliente.text;
-
-            // 🔥 Personalizar cómo se ve cada opción en el dropdown
-            return $(
-                `<div>
-                    <i class="fas fa-user text-primary mr-2"></i>
-                    <strong>${cliente.text}</strong>
-                </div>`
-            );
-        },
-        templateSelection: function (cliente) {
-            // 🔥 Cómo se ve la opción seleccionada
-            if (!cliente.id) return cliente.text;
-            return cliente.text;
-        },
+    // ============================================================
+    // 🔥 AUTO-FOCUS EN SELECT2 AL HACER CLIC
+    // ============================================================
+    $(document).on('select2:open', function (e) {
+        setTimeout(function () {
+            const searchField = document.querySelector('.select2-container--open .select2-search__field');
+            if (searchField) {
+                searchField.focus();
+            }
+        }, 50);
     });
-}
-
-// ============================================================
-// 🔥 AUTO-FOCUS EN SELECT2 AL HACER CLIC
-// ============================================================
-$(document).on('select2:open', function (e) {
-    // Enfocar el input de búsqueda del dropdown abierto
-    setTimeout(function () {
-        const searchField = document.querySelector('.select2-container--open .select2-search__field');
-        if (searchField) {
-            searchField.focus();
-        }
-    }, 50);
-});
 
 
     // ============================================================
@@ -633,7 +727,7 @@ $(document).on('select2:open', function (e) {
     });
 
     // ============================================================
-    // GUARDAR MASCOTA (crear o editar)
+    // GUARDAR MASCOTA (crear o editar desde el modal principal)
     // ============================================================
     $('#btn-guardar-mascota').on('click', function () {
         const $form = $('#form-mascota');
@@ -647,7 +741,7 @@ $(document).on('select2:open', function (e) {
         if (esEdicion) {
             formData.push({ name: '_method', value: 'PUT' });
         }
-         formData.push({ name: 'esterilizado', value: $form.find('[name="esterilizado"]').is(':checked') ? 1 : 0 });
+        formData.push({ name: 'esterilizado', value: $form.find('[name="esterilizado"]').is(':checked') ? 1 : 0 });
 
         $.ajax({
             url: url,
@@ -685,6 +779,7 @@ $(document).on('select2:open', function (e) {
         });
     });
 
+
     // ============================================================
     // LIMPIAR MODAL AL CERRAR
     // ============================================================
@@ -700,6 +795,100 @@ $(document).on('select2:open', function (e) {
         $form.find('[name="esterilizado"]').prop('checked', false);
         $('#edad_display').val(''); 
     });
+
+
+    // Escuchar cambios en la fecha de nacimiento para calcular edad
+    $('#fecha_nacimiento_mascota').on('input change', function () {
+        const fecha = $(this).val();
+        $('#edad_display').val(calcularEdad(fecha));
+    });
+
+
+    // ============================================================
+    // 🔥 FILTRAR HISTORIA CLINICA POR FECHA
+    // ============================================================
+    const baseHist = @json(url('mascotas'));
+    const camposHist = ['fecha_consulta','proxima_cita_sugerida','motivo_consulta','anamnesis',
+        'temperatura','frecuencia_cardiaca','frecuencia_respiratoria','peso',
+        'estado_corporal','hidratacion','examen_fisico','diagnostico','tratamiento','observaciones'];
+
+    const escHtml = (s) => $('<div>').text(s ?? '').html();
+
+    function cargarHistoria(id) {
+        $.get(`${baseHist}/historia/${id}`)
+            .done(res => {
+                const h = res.historia;
+                $('#histId').val(h.id);
+                $('#histVeterinario').text(h.veterinario ?? '—');
+                camposHist.forEach(k => $(`#formHistoria [name="${k}"]`).val(h[k] ?? ''));
+
+                const $a = $('#histArchivos').empty();
+                if (!res.archivos.length) {
+                    $a.html('<p class="text-muted small mb-0">Sin archivos adjuntos.</p>');
+                    return;
+                }
+                res.archivos.forEach(f => {
+                    const preview = f.tipo === 'imagen'
+                        ? `<img src="${f.url}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px">`
+                        : `<div class="d-flex align-items-center justify-content-center bg-light" style="height:90px;border-radius:6px">
+                            <i class="far fa-file-pdf fa-2x text-danger"></i></div>`;
+                    $a.append(`
+                        <a href="${f.url}" target="_blank" rel="noopener" class="text-dark" style="width:120px;text-decoration:none">
+                            ${preview}
+                            <div class="small text-truncate mt-1" title="${escHtml(f.nombre)}">${escHtml(f.nombre)}</div>
+                            <div class="small text-muted">${escHtml(f.peso_kb)} KB</div>
+                        </a>`);
+                });
+            })
+            .fail(() => Swal.fire('Error', 'No se pudo cargar la consulta.', 'error'));
+    }
+
+    // Botón en la tabla de mascotas
+    $(document).on('click', '.btn-historia', function () {
+        const mascotaId = $(this).data('id');
+
+        $.get(`${baseHist}/${mascotaId}/historias`)
+            .done(res => {
+                $('#histMascotaNombre').text(res.mascota.nombre);
+                $('#histSelector').html(
+                    res.historias.map(h => `<option value="${h.id}">${escHtml(h.etiqueta)}</option>`).join('')
+                );
+                cargarHistoria(res.historias[0].id);   // la más reciente
+                $('#modalHistoria').modal('show');
+            })
+            .fail(xhr => Swal.fire('Sin historia', xhr.responseJSON?.message ?? 'No se pudo cargar la historia.', 'info'));
+    });
+
+    // Cambiar de consulta
+    $('#histSelector').on('change', function () { cargarHistoria(this.value); });
+
+    // Guardar Historia
+    $('#formHistoria').on('submit', function (e) {
+        e.preventDefault();
+        const id = $('#histId').val();
+
+        $.ajax({
+            url: `${baseHist}/historia/${id}`,
+            method: 'PUT',
+            data: $(this).serialize(),
+            headers: { 'X-CSRF-TOKEN': $('#formHistoria input[name=_token]').val() },
+        })
+        .done(res => {
+            toastr.success(res.message);
+            const motivo = $('#formHistoria [name=motivo_consulta]').val() || 'Sin motivo';
+            const fecha = $('#formHistoria [name=fecha_consulta]').val();
+            if (fecha) {
+                const d = new Date(fecha);
+                const f = d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+                $('#histSelector option:selected').text(`${f} · ${motivo}`);
+            }
+        })
+        .fail(xhr => {
+            const errs = xhr.responseJSON?.errors;
+            Swal.fire('Error', errs ? Object.values(errs).flat().join('<br>') : 'No se pudo guardar.', 'error');
+        });
+    });
+
 });
 
 
@@ -777,79 +966,53 @@ function verMascota(id) {
         jQuery('#modalDetalleMascota').modal('show');
     })
     .catch((err) => {
-        cont.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
+        cont.innerHTML = `<div class="alert alert-danger mb-0">${err.message}</div>`;
         jQuery('#modalDetalleMascota').modal('show');
     });
 }
 
 
 function editarMascota(id) {
-    fetch(`/mascotas/${id}/edit`, {
-        headers: { 'Accept': 'application/json' }
-    })
-    .then((res) => {
-        if (!res.ok) throw new Error('No se pudo cargar la mascota.');
-        return res.json();
-    })
-    .then((data) => {
-        const m = data.mascota || data;
-        console.log('Datos de la mascota:', m);   // 👈 temporal para debug
+    console.log("Abriendo edición para mascota ID:", id);
 
-         // 🔥 Precargar el propietario actual en el Select2
-        if (m.cliente_id) {
-            const clienteTexto = m.cliente
-                ? `${m.cliente.nombres} ${m.cliente.apellidos} - ${m.cliente.numero_documento}`
-                : `Cliente #${m.cliente_id}`;
+    $.ajax({
+        url: '/mascotas/' + id + '/edit',
+        type: 'GET',
+        success: function(response) {
+            console.log("Respuesta del servidor:", response);
 
-            // Crear la opción si no existe
-            const $select = $('#cliente_id_select');
-            if ($select.find("option[value='" + m.cliente_id + "']").length === 0) {
-                const option = new Option(clienteTexto, m.cliente_id, true, true);
-                $select.append(option).trigger('change');
+            if (response.success) {
+                let m = response.mascota;
+                
+                $('#edit_id').val(m.id);
+                $('#edit_nombre').val(m.nombre);
+                $('#edit_especie').val(m.especie);
+                $('#edit_raza').val(m.raza);
+                $('#edit_color').val(m.color);
+                $('#edit_fecha_nacimiento').val(m.fecha_nacimiento);
+                $('#edit_genero').val(m.genero);
+                $('#edit_peso').val(m.peso);
+                $('#edit_numero_chip').val(m.numero_chip);
+                $('#edit_estado').val(m.estado);
+                $('#edit_cliente_id').val(m.cliente_id);
+                
+                if ($('#edit_cliente_id').hasClass('select2-hidden-accessible')) {
+                    $('#edit_cliente_id').trigger('change');
+                }
+
+                $('#modal-editar-mascota').modal('show');
             } else {
-                $select.val(m.cliente_id).trigger('change');
+                Swal.fire('Atención', response.message || 'No se pudo cargar', 'warning');
             }
+        },
+        error: function(xhr) {
+            console.error("Error AJAX:", xhr);
+            let mensaje = 'Error al cargar la mascota.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                mensaje = xhr.responseJSON.message;
+            }
+            Swal.fire('Error', mensaje, 'error');
         }
-
-
-        $('#modal-mascota .modal-title').html('<i class="fas fa-paw text-primary"></i> Editar Mascota');
-
-        $('#form-mascota [name="cliente_id"]').val(m.cliente_id).trigger('change');
-        $('#form-mascota [name="nombre"]').val(m.nombre || '');
-        $('#form-mascota [name="especie"]').val(m.especie || '');
-        $('#form-mascota [name="raza"]').val(m.raza || '');
-        $('#form-mascota [name="color"]').val(m.color || '');
-        $('#form-mascota [name="genero"]').val(m.genero || '');
-
-        // 🔥 FECHA DE NACIMIENTO
-        const fechaNac = m.fecha_nacimiento
-            ? String(m.fecha_nacimiento).substring(0, 10)   // "2021-04-14"
-            : '';
-        $('#form-mascota [name="fecha_nacimiento"]').val(fechaNac).trigger('change');
-
-        // 🔥 ESTADO
-        $('#form-mascota [name="estado"]').val(m.estado || 'activo');
-
-        $('#form-mascota [name="peso"]').val(m.peso || '');
-        $('#form-mascota [name="numero_chip"]').val(m.numero_chip || '');
-        $('#form-mascota [name="esterilizado"]').prop('checked', !!m.esterilizado);
-        $('#form-mascota [name="alergias"]').val(m.alergias || '');
-        $('#form-mascota [name="enfermedades_cronicas"]').val(m.enfermedades_cronicas || '');
-        $('#form-mascota [name="notas"]').val(m.notas || '');
-
-        const $form = $('#form-mascota');
-        $form.data('modo', 'editar');
-        $form.data('id', m.id);
-
-        $('#modal-mascota').modal('show');
-    })
-    .catch((err) => {
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: err.message,
-            confirmButtonColor: '#d33'
-        });
     });
 }
 
@@ -903,6 +1066,58 @@ function eliminarMascota(id) {
     });
 }
 
+
+function actualizarMascota() {
+    let id = $('#edit_id').val();
+    let form = $('#form-editar-mascota');
+    
+    if (!id) {
+        Swal.fire('Error', 'No se encontró el ID de la mascota', 'error');
+        return;
+    }
+
+    let formData = form.serialize();
+    // Obtenemos el botón que disparó el evento (usando el event global de window)
+    let btn = window.event ? window.event.target : null; 
+
+    if(btn) $(btn).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Guardando...');
+
+    $.ajax({
+        url: '/mascotas/' + id,
+        type: 'POST', 
+        data: formData + '&_method=PUT',
+        headers: { 
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') 
+        },
+        success: function(response) {
+            if (response.success) {
+                $('#modal-editar-mascota').modal('hide');
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Actualizado!',
+                    text: 'Los datos se guardaron correctamente.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                
+                if (window.tablaMascotas) {
+                    window.tablaMascotas.ajax.reload(null, false);
+                }
+            } else {
+                Swal.fire('Atención', response.message || 'No se pudo actualizar', 'warning');
+            }
+        },
+        error: function(xhr) {
+            let errors = xhr.responseJSON ? xhr.responseJSON.errors : null;
+            let msg = errors ? Object.values(errors).flat().join('\n') : 'Error al actualizar la mascota';
+            Swal.fire('Error', msg, 'error');
+        },
+        complete: function() {
+            if(btn) $(btn).prop('disabled', false).html('<i class="fas fa-save"></i> Guardar Cambios');
+        }
+    });
+}
+
 // ============================================================
 // 🔥 CÁLCULO AUTOMÁTICO DE EDAD
 // ============================================================
@@ -919,7 +1134,6 @@ function calcularEdad(fechaStr) {
     let meses = hoy.getMonth() - nacimiento.getMonth();
     let dias  = hoy.getDate() - nacimiento.getDate();
 
-    // Ajustar si aún no ha cumplido años/meses este año
     if (dias < 0) {
         meses--;
         const ultimoMes = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
@@ -930,7 +1144,6 @@ function calcularEdad(fechaStr) {
         meses += 12;
     }
 
-    // Formato de salida
     if (años === 0 && meses === 0) {
         return `${dias} día${dias !== 1 ? 's' : ''}`;
     }
@@ -943,105 +1156,13 @@ function calcularEdad(fechaStr) {
     return `${años} año${años !== 1 ? 's' : ''} y ${meses} mes${meses !== 1 ? 'es' : ''}`;
 }
 
-// Escuchar cambios en la fecha de nacimiento
-$('#fecha_nacimiento_mascota').on('input change', function () {
-    const fecha = $(this).val();
-    $('#edad_display').val(calcularEdad(fecha));
-});
-
-// ============================================================
-// 🔥 FILTRR HISTORIA CLINICA POR FECHA
-// ============================================================
-
-
-    const baseHist = @json(url('mascotas'));
-    const camposHist = ['fecha_consulta','proxima_cita_sugerida','motivo_consulta','anamnesis',
-        'temperatura','frecuencia_cardiaca','frecuencia_respiratoria','peso',
-        'estado_corporal','hidratacion','examen_fisico','diagnostico','tratamiento','observaciones'];
-
-    const escHtml = (s) => $('<div>').text(s ?? '').html();
-
-    function cargarHistoria(id) {
-        $.get(`${baseHist}/historia/${id}`)
-            .done(res => {
-                const h = res.historia;
-                $('#histId').val(h.id);
-                $('#histVeterinario').text(h.veterinario ?? '—');
-                camposHist.forEach(k => $(`#formHistoria [name="${k}"]`).val(h[k] ?? ''));
-
-                const $a = $('#histArchivos').empty();
-                if (!res.archivos.length) {
-                    $a.html('<p class="text-muted small mb-0">Sin archivos adjuntos.</p>');
-                    return;
-                }
-                res.archivos.forEach(f => {
-                    const preview = f.tipo === 'imagen'
-                        ? `<img src="${f.url}" alt="" style="width:100%;height:90px;object-fit:cover;border-radius:6px">`
-                        : `<div class="d-flex align-items-center justify-content-center bg-light" style="height:90px;border-radius:6px">
-                            <i class="far fa-file-pdf fa-2x text-danger"></i></div>`;
-                    $a.append(`
-                        <a href="${f.url}" target="_blank" rel="noopener" class="text-dark" style="width:120px;text-decoration:none">
-                            ${preview}
-                            <div class="small text-truncate mt-1" title="${escHtml(f.nombre)}">${escHtml(f.nombre)}</div>
-                            <div class="small text-muted">${escHtml(f.peso_kb)} KB</div>
-                        </a>`);
-                });
-            })
-            .fail(() => Swal.fire('Error', 'No se pudo cargar la consulta.', 'error'));
-    }
-
-    // Botón en la tabla de mascotas
-    $(document).on('click', '.btn-historia', function () {
-        const mascotaId = $(this).data('id');
-
-        $.get(`${baseHist}/${mascotaId}/historias`)
-            .done(res => {
-                $('#histMascotaNombre').text(res.mascota.nombre);
-                $('#histSelector').html(
-                    res.historias.map(h => `<option value="${h.id}">${escHtml(h.etiqueta)}</option>`).join('')
-                );
-                cargarHistoria(res.historias[0].id);   // la más reciente
-                $('#modalHistoria').modal('show');
-            })
-            .fail(xhr => Swal.fire('Sin historia', xhr.responseJSON?.message ?? 'No se pudo cargar la historia.', 'info'));
-    });
-
-    // Cambiar de consulta
-    $('#histSelector').on('change', function () { cargarHistoria(this.value); });
-
-    // Guardar
-    $('#formHistoria').on('submit', function (e) {
-        e.preventDefault();
-        const id = $('#histId').val();
-
-        $.ajax({
-            url: `${baseHist}/historia/${id}`,
-            method: 'PUT',
-            data: $(this).serialize(),
-            headers: { 'X-CSRF-TOKEN': $('#formHistoria input[name=_token]').val() },
-        })
-        .done(res => {
-            toastr.success(res.message);
-            // refresca la etiqueta del selector con fecha/motivo nuevos
-            const motivo = $('#formHistoria [name=motivo_consulta]').val() || 'Sin motivo';
-            const fecha = $('#formHistoria [name=fecha_consulta]').val();
-            if (fecha) {
-                const d = new Date(fecha);
-                const f = d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-                $('#histSelector option:selected').text(`${f} · ${motivo}`);
-            }
-        })
-        .fail(xhr => {
-            const errs = xhr.responseJSON?.errors;
-            Swal.fire('Error', errs ? Object.values(errs).flat().join('<br>') : 'No se pudo guardar.', 'error');
-        });
-    });
-
 // ============================================================
 // 🔥 FORZAR SCOPE GLOBAL
 // ============================================================
-window.verMascota      = verMascota;
-window.editarMascota   = editarMascota;
-window.eliminarMascota = eliminarMascota;
+window.verMascota        = verMascota;
+window.editarMascota     = editarMascota;
+window.eliminarMascota   = eliminarMascota;
+window.actualizarMascota = actualizarMascota; // 🔥 AHORA SÍ ESTÁ GLOBAL
+window.calcularEdad      = calcularEdad;
 </script>
 @endpush

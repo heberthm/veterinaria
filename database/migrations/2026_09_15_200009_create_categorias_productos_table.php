@@ -13,6 +13,7 @@ return new class extends Migration
      */
     public function up()
     {
+      if (!Schema::hasTable('categorias_productos')) {
         Schema::create('categorias_productos', function (Blueprint $table) {
             $table->id();
             
@@ -55,6 +56,7 @@ return new class extends Migration
             $table->index('activo');
         });
     }
+ }
 
     /**
      * Reverse the migrations.

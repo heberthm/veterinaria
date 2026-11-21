@@ -4,13 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Cita;
 use App\Models\Mascota;
+use App\Models\Veterinario; 
 use App\Models\Sede;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
-
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Validator;
 
@@ -26,106 +25,106 @@ class AgendaController extends Controller
     /**
      * Vista principal (solo carga el shell, sin datos del grid)
      */
-    public function index(Request $request)
-    {
-        $tenantId = Auth::user()->tenant_id;
+ 
 
-        // Datos para los filtros (estos sí van en el HTML inicial)
-        $veterinarios = User::where('tenant_id', $tenantId)
-            ->where('rol', 'veterinario')
-            ->orderBy('name')
-            ->get();
-
-        $sedes = Sede::where('tenant_id', $tenantId)
-            ->orderBy('nombre')
-            ->get();
-
-        $mascotas = Mascota::whereHas('cliente', function ($q) use ($tenantId) {
-                $q->where('tenant_id', $tenantId);
-            })
-            ->with('cliente')
-            ->orderBy('nombre')
-            ->get();
-
-        $fechaSeleccionada = $request->filled('fecha')
-            ? Carbon::parse($request->fecha)
-            : Carbon::today();
-
-        return view('agenda', compact(
-            'veterinarios',
-            'sedes',
-            'mascotas',
-            'fechaSeleccionada'
-        ));
-    }
-
-    public function eventos(Request $request)
+public function index(Request $request)
 {
     $tenantId = auth()->user()->tenant_id;
 
-    $start = $request->get('start');
-    $end   = $request->get('end');
+    // 🔥 CAMBIO AQUÍ: Buscar en la nueva tabla
+    $veterinarios = Veterinario::where('tenant_id', $tenantId)
+        ->where('activo', true)
+        ->orderBy('nombre')
+        ->get();
 
-    $query = Cita::where('tenant_id', $tenantId);
+    $sedes = Sede::where('tenant_id', $tenantId)->orderBy('nombre')->get();
+    
+    $mascotas = Mascota::whereHas('cliente', function ($q) use ($tenantId) {
+        $q->where('tenant_id', $tenantId);
+    })->with('cliente')->orderBy('nombre')->get();
 
-    if ($start && $end) {
-        $query->whereDate('fecha', '>=', Carbon::parse($start)->toDateString())
-              ->whereDate('fecha', '<=', Carbon::parse($end)->toDateString());
-    }
+    $fechaSeleccionada = $request->filled('fecha')
+        ? Carbon::parse($request->fecha)
+        : Carbon::today();
 
-    if ($request->filled('veterinario_id')) $query->where('veterinario_id', $request->veterinario_id);
-    if ($request->filled('sede_id'))        $query->where('sede_id', $request->sede_id);
-    if ($request->filled('estado'))         $query->where('estado', $request->estado);
-
-    $citas = $query->with(['mascota.cliente', 'veterinario', 'sede'])->get();
-
-    $colores = [
-        'pendiente'   => ['bg' => '#F59E0B', 'border' => '#F59E0B'],
-        'confirmada'  => ['bg' => '#16A34A', 'border' => '#16A34A'],
-        'en_atencion' => ['bg' => '#2F6FED', 'border' => '#2F6FED'],
-        'finalizada'  => ['bg' => '#8B5CF6', 'border' => '#8B5CF6'],
-        'cancelada'   => ['bg' => '#EF4444', 'border' => '#EF4444'],
-    ];
-
-    $eventos = $citas->map(function ($cita) use ($colores) {
-      $hi = $cita->hora_inicio ? substr($cita->hora_inicio, 0, 5) : '09:00';
-       $inicio = $cita->fecha->format('Y-m-d') . 'T' . $hi . ':00';
-       $fin = $cita->hora_fin
-            ? $cita->fecha->format('Y-m-d') . 'T' . substr($cita->hora_fin, 0, 5) . ':00'
-            : Carbon::parse($inicio)->addMinutes(30)->format('Y-m-d\TH:i:s');
-
-        $color = $colores[$cita->estado] ?? ['bg' => '#6B7280', 'border' => '#6B7280'];
-
-        return [
-            'id'              => $cita->id,
-           'title'           => $cita->mascota?->nombre ?? 'Cita',
-            'start'           => $inicio,
-            'end'             => $fin,
-            'backgroundColor' => $color['bg'],
-            'borderColor'     => $color['border'],
-            'textColor'       => '#ffffff',
-            'extendedProps'   => [
-                'estado'          => $cita->estado,
-                'mascota_id'      => $cita->mascota_id,
-                'mascota'         => $cita->mascota?->nombre ?? '—',
-                'mascota_raza'    => $cita->mascota?->raza ?? '',
-                'mascota_especie' => $cita->mascota?->especie ?? '',
-                'cliente'     => $cita->mascota?->cliente?->nombreCompleto() ?? '—',
-                'cliente_tel' => $cita->mascota?->cliente?->celular,
-                'veterinario_id'  => $cita->veterinario_id,
-                'veterinario'     => $cita->veterinario->name ?? 'Sin asignar',
-                'sede_id'         => $cita->sede_id,
-                'sede'            => $cita->sede->nombre ?? '—',
-                'tipo_consulta'   => $cita->tipo_consulta ?? 'Consulta general',
-                'motivo'          => $cita->motivo ?? 'Sin motivo registrado.',
-                'hora_inicio_fmt' => $cita->hora_inicio ? Carbon::parse($cita->hora_inicio)->format('h:i A') : '',
-                'hora_fin_fmt'    => $cita->hora_fin ? Carbon::parse($cita->hora_fin)->format('h:i A') : '',
-            ],
-        ];
-    });
-
-    return response()->json($eventos);
+    return view('agenda', compact('veterinarios', 'sedes', 'mascotas', 'fechaSeleccionada'));
 }
+
+    public function eventos(Request $request)
+    {
+        $tenantId = auth()->user()->tenant_id ?? 1;
+
+        $start = $request->get('start');
+        $end   = $request->get('end');
+
+        $query = Cita::where('tenant_id', $tenantId);
+
+        if ($start && $end) {
+            $query->whereDate('fecha', '>=', Carbon::parse($start)->toDateString())
+                  ->whereDate('fecha', '<=', Carbon::parse($end)->toDateString());
+        }
+
+        if ($request->filled('veterinario_id')) $query->where('veterinario_id', $request->veterinario_id);
+        if ($request->filled('sede_id'))        $query->where('sede_id', $request->sede_id);
+        if ($request->filled('estado'))         $query->where('estado', $request->estado);
+
+        $citas = $query->with(['mascota.cliente', 'veterinario', 'sede'])->get();
+
+        $colores = [
+            'pendiente'   => ['bg' => '#F59E0B', 'border' => '#F59E0B'],
+            'confirmada'  => ['bg' => '#16A34A', 'border' => '#16A34A'],
+            'en_atencion' => ['bg' => '#2F6FED', 'border' => '#2F6FED'],
+            'finalizada'  => ['bg' => '#8B5CF6', 'border' => '#8B5CF6'],
+            'cancelada'   => ['bg' => '#EF4444', 'border' => '#EF4444'],
+        ];
+
+        $eventos = $citas->map(function ($cita) use ($colores) {
+            // 🔥 1. Formatear correctamente la fecha y horas
+            $fechaStr = $cita->fecha->format('Y-m-d');
+            
+            // Si la hora viene vacía, ponemos una por defecto
+            $horaIni = $cita->hora_inicio ? substr($cita->hora_inicio, 0, 5) : '09:00';
+            $horaFin = $cita->hora_fin ? substr($cita->hora_fin, 0, 5) : '09:30';
+
+            // Construir fechas ISO 8601 que FullCalendar entiende perfectamente
+            $inicio = "{$fechaStr}T{$horaIni}:00";
+            $fin    = "{$fechaStr}T{$horaFin}:00";
+
+            $color = $colores[$cita->estado] ?? ['bg' => '#6B7280', 'border' => '#6B7280'];
+
+            return [
+                'id'              => $cita->id,
+                'title'           => $cita->mascota?->nombre ?? 'Cita',
+                'start'           => $inicio,
+                'end'             => $fin,
+                'allDay'          => false, // 🔥 FORZAR FALSO PARA QUE SALGA EN LA SEMANA/DÍA
+                'backgroundColor' => $color['bg'],
+                'borderColor'     => $color['border'],
+                'textColor'       => '#ffffff',
+                'extendedProps'   => [
+                    'estado'          => $cita->estado,
+                    'mascota_id'      => $cita->mascota_id,
+                    'mascota'         => $cita->mascota?->nombre ?? '—',
+                    'mascota_raza'    => $cita->mascota?->raza ?? '',
+                    'mascota_especie' => $cita->mascota?->especie ?? '',
+                    'cliente'         => $cita->mascota?->cliente?->nombreCompleto() ?? '—',
+                    'cliente_tel'     => $cita->mascota?->cliente?->celular,
+                    'veterinario_id'  => $cita->veterinario_id,
+                    'veterinario'     => $cita->veterinario 
+                                            ? 'Dr. ' . $cita->veterinario->nombre . ' ' . $cita->veterinario->apellidos 
+                                            : 'Sin asignar',
+                    'sede_id'         => $cita->sede_id,
+                    'sede'            => $cita->sede->nombre ?? '—',
+                    'tipo_consulta'   => $cita->tipo_consulta ?? 'Consulta general',
+                    'motivo'          => $cita->motivo ?? 'Sin motivo registrado.',
+                    'hora_inicio_fmt' => Carbon::parse($horaIni)->format('h:i A'),
+                    'hora_fin_fmt'    => Carbon::parse($horaFin)->format('h:i A'),
+                ],
+            ];
+        });
+
+        return response()->json($eventos);
+    }
 
 /**
  * 🔥 AJAX: Datos para la vista de Agenda (mini calendario + resumen)
@@ -232,79 +231,68 @@ public function datos(Request $request)
     /**
      * 🔥 AJAX: Guardar nueva cita
      */
-   public function store(Request $request)
+        public function store(Request $request)
     {
-        $tenantId = auth()->user()->tenant_id;
-
         $validator = Validator::make($request->all(), [
-            'mascota_id'     => 'required|exists:mascotas,id',
-            'veterinario_id' => 'nullable|exists:users,id',
-            'sede_id'        => 'nullable|exists:sedes,id',
-            'fecha'          => 'required|date',
-            'hora_inicio'    => 'required',
-            'hora_fin'       => 'nullable',
-            'tipo_consulta'  => 'nullable|string|max:100',
-            'motivo'         => 'nullable|string',
-            'estado'         => 'nullable|in:pendiente,confirmada,en_atencion,finalizada,cancelada',
+            'mascota_id' => 'required|exists:mascotas,id',
+            
+            // 🔥 CAMBIO AQUÍ: Validar contra la tabla 'veterinarios'
+            'veterinario_id' => 'nullable|exists:veterinarios,id', 
+            
+            'sede_id' => 'nullable|exists:sedes,id',
+            'fecha' => 'required|date',
+            'hora_inicio' => 'required',
+            'hora_fin' => 'required|after:hora_inicio',
+            'tipo_consulta' => 'required|string',
+            'estado' => 'required|string',
+            'motivo' => 'nullable|string'
         ]);
 
         if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors(),
-            ], 422);
+            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
         }
 
-        // La mascota debe ser de este tenant; de ahí sale el cliente
-        $mascota = Mascota::where('tenant_id', $tenantId)->findOrFail($request->mascota_id);
-
-        try {
-            $cita = Cita::create([
-                'tenant_id'      => $tenantId,
-                'usuario_id'     => auth()->id(),
-                'cliente_id'     => $mascota->cliente_id,
-                'mascota_id'     => $mascota->id,
-                'veterinario_id' => $request->veterinario_id,
-                'sede_id'        => $request->sede_id,
-                'fecha'          => $request->fecha,
-                'hora_inicio'    => $request->hora_inicio,
-                'hora_fin'       => $request->hora_fin,
-                'tipo_consulta'  => $request->tipo_consulta,
-                'motivo'         => $request->motivo,
-                'estado'         => $request->estado ?? 'pendiente',
-            ]);
-        } catch (QueryException $e) {
-            // 1062 = clave única duplicada (mismo horario para la misma mascota)
-            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
-                return response()->json([
-                    'message' => 'Ya existe una cita para esta mascota en ese día y hora.',
-                    'errors'  => ['hora_inicio' => ['Ya existe una cita para esta mascota en ese día y hora.']],
-                ], 422);
-            }
-            throw $e;
-        }
-
-        $cita->load(['mascota.cliente', 'veterinario', 'sede']);
+        $cita = Cita::create([
+            'tenant_id' => auth()->user()->tenant_id ?? 1,
+            'mascota_id' => $request->mascota_id,
+            'veterinario_id' => $request->veterinario_id ?: null,
+            'sede_id' => $request->sede_id ?: null,
+            'fecha' => $request->fecha,
+            'hora_inicio' => $request->hora_inicio,
+            'hora_fin' => $request->hora_fin,
+            'tipo_consulta' => $request->tipo_consulta,
+            'estado' => $request->estado,
+            'motivo' => $request->motivo,
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Cita creada correctamente',
-            'cita'    => $this->formatearCita($cita),
+            'message' => 'Cita guardada',
+            'cita' => $cita
         ]);
     }
 
     /**
      * 🔥 AJAX: Actualizar cita
      */
-    public function update(Request $request, $id)
+        public function update(Request $request, $id)
     {
-        $tenantId = auth()->user()->tenant_id;
+        $tenantId = auth()->user()->tenant_id ?? 1;
+        
+        // 1. Buscar la cita
+        $cita = Cita::where('tenant_id', $tenantId)->find($id);
 
-        $cita = Cita::where('tenant_id', $tenantId)->findOrFail($id);
+        if (!$cita) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cita no encontrada'
+            ], 404);
+        }
 
+        // 2. Validar los datos (quitando el veterinario_id duplicado)
         $validator = Validator::make($request->all(), [
             'mascota_id'     => 'required|exists:mascotas,id',
-            'veterinario_id' => 'nullable|exists:users,id',
+            'veterinario_id' => 'nullable|exists:veterinarios,id',
             'sede_id'        => 'nullable|exists:sedes,id',
             'fecha'          => 'required|date',
             'hora_inicio'    => 'required',
@@ -314,36 +302,41 @@ public function datos(Request $request)
             'estado'         => 'nullable|in:pendiente,confirmada,en_atencion,finalizada,cancelada',
         ]);
 
+        // 3. Si la validación falla, devolver los errores
         if ($validator->fails()) {
             return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors(),
+                'success' => false, 
+                'errors'  => $validator->errors()
             ], 422);
         }
 
-        // 🔥 Obtener la mascota para heredar el cliente_id
-        $mascota = Mascota::where('tenant_id', $tenantId)->findOrFail($request->mascota_id);
+        // 4. Actualizar los datos en la base de datos
+        try {
+            $cita->update([
+                'mascota_id'     => $request->mascota_id,
+                'veterinario_id' => $request->veterinario_id ?: null, // Si viene vacío, guarda NULL
+                'sede_id'        => $request->sede_id ?: null,
+                'fecha'          => $request->fecha,
+                'hora_inicio'    => $request->hora_inicio,
+                'hora_fin'       => $request->hora_fin,
+                'tipo_consulta'  => $request->tipo_consulta,
+                'motivo'         => $request->motivo,
+                'estado'         => $request->estado ?? $cita->estado,
+            ]);
 
-        $cita->update([
-            'cliente_id'     => $mascota->cliente_id,        // 👈 por si cambia la mascota
-            'mascota_id'     => $request->mascota_id,
-            'veterinario_id' => $request->veterinario_id,
-            'sede_id'        => $request->sede_id,
-            'fecha'          => $request->fecha,
-            'hora_inicio'    => $request->hora_inicio,
-            'hora_fin'       => $request->hora_fin,
-            'tipo_consulta'  => $request->tipo_consulta,
-            'motivo'         => $request->motivo,
-            'estado'         => $request->estado ?? $cita->estado,
-        ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Cita actualizada correctamente',
+                'cita'    => $this->formatearCita($cita->fresh()),
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cita actualizada correctamente',
-            'cita'    => $this->formatearCita($cita->fresh()),
-        ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar: ' . $e->getMessage()
+            ], 500);
+        }
     }
-
     /**
      * 🔥 AJAX: Cambiar estado
      */
