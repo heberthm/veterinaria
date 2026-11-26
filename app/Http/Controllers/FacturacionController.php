@@ -43,9 +43,16 @@ class FacturacionController extends Controller
         return Schema::hasColumn((new Venta)->getTable(), 'fecha') ? 'fecha' : 'created_at';
     }
 
+    /** Número de factura tal como quedó guardado (el accesorio del modelo lo reemplaza por V-<id>). */
     private function numeroDe($venta): string
     {
-        return (string) ($venta->numero_factura ?? $venta->consecutivo ?? $venta->id);
+        foreach (['numero_factura', 'consecutivo'] as $col) {
+            $v = $venta->getRawOriginal($col);
+            if (!empty($v)) {
+                return (string) $v;
+            }
+        }
+        return 'V-' . str_pad($venta->id, 6, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -61,13 +68,21 @@ class FacturacionController extends Controller
         }
 
         $id = $venta->usuario_id ?? $venta->usurio_id ?? null;
-        if (!$id) {
+        if ($id) {
+            if (!array_key_exists($id, $this->cacheVendedores)) {
+                $this->cacheVendedores[$id] = DB::table('users')->where('id', $id)->value('name');
+            }
+            if ($this->cacheVendedores[$id]) {
+                return $this->cacheVendedores[$id];
+            }
+        }
+
+        // Último recurso: la relación usuario() del modelo
+        try {
+            return optional($venta->usuario)->name;
+        } catch (\Throwable $e) {
             return null;
         }
-        if (!array_key_exists($id, $this->cacheVendedores)) {
-            $this->cacheVendedores[$id] = DB::table('users')->where('id', $id)->value('name');
-        }
-        return $this->cacheVendedores[$id];
     }
 
     private function metodoLabel($metodo): string
@@ -248,13 +263,39 @@ class FacturacionController extends Controller
     // ------------------------------------------------------------------
     public function generarPDF($id)
     {
-        $venta = Venta::with(['cliente', 'mascota', 'usuario', 'detalles.producto'])
-            ->where('tenant_id', $this->tenantId())
-            ->findOrFail($id);
+        $venta = Venta::where('tenant_id', $this->tenantId())->findOrFail($id);
 
-       $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf-facturas', compact('venta'))
-            ->setPaper('letter');
+        // Empresa (si el modelo Tenant la trae)
+        $empresa = null;
+        try {
+            $t = $venta->tenant;
+            $empresa = $t->nombre ?? $t->name ?? $t->razon_social ?? null;
+        } catch (\Throwable $e) {
+        }
 
+        $lineas   = $this->lineas($venta);
+        $subtotal = (float) ($venta->subtotal ?? collect($lineas)->sum('subtotal'));
+        $descuento = (float) ($venta->descuento_valor ?? 0);
+        $iva      = (float) ($venta->iva_valor ?? 0);
+        $estado   = strtolower((string) $venta->estado);
+        $fecha    = $venta->{$this->columnaFecha()} ?? $venta->created_at;
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf-facturas', [
+            'venta'     => $venta,
+            'numero'    => $this->numeroDe($venta),
+            'vendedor'  => $this->vendedorDe($venta) ?? '—',
+            'cliente'   => $venta->cliente,
+            'empresa'   => $empresa,
+            'lineas'    => $lineas,
+            'fecha'     => $fecha ? \Carbon\Carbon::parse($fecha)->format('d/m/Y H:i') : '—',
+            'estado'    => $estado === 'completada' ? 'pagada' : $estado,
+            'metodo'    => $this->metodoLabel($venta->metodo_pago ?? null),
+            'subtotal'  => $subtotal,
+            'descuento' => $descuento,
+            'iva'       => $iva,
+            'total'     => (float) $venta->total,
+        ])->setPaper('letter');
+        
         return $pdf->stream('factura-' . $this->numeroDe($venta) . '.pdf');
     }
 }

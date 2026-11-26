@@ -9,24 +9,67 @@ use App\Models\Venta;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
+    private function tenantId(): int
+    {
+        return (int) (auth()->user()->tenant_id ?? 1);
+    }
+
+    /**
+     * Consulta base de ventas "cobradas" del tenant.
+     * - Tolera que la fecha esté en `fecha` o en `created_at` (o en ambas).
+     * - Tolera estados distintos de 'pagada' (excluye solo los no cobrados).
+     */
+    private function ventasCobradas()
+    {
+        $tabla = (new Venta)->getTable();
+        $q = DB::table($tabla);
+
+        if (Schema::hasColumn($tabla, 'tenant_id')) {
+            $q->where('tenant_id', $this->tenantId());
+        }
+        if (Schema::hasColumn($tabla, 'estado')) {
+            $q->whereRaw("LOWER(COALESCE(estado,'')) NOT IN ('anulada','anulado','cancelada','cancelado','pendiente')");
+        }
+        return $q;
+    }
+
+    /** Expresión SQL con la fecha real de la venta. */
+    private function exprFecha(): string
+    {
+        $tabla = (new Venta)->getTable();
+        $tieneFecha   = Schema::hasColumn($tabla, 'fecha');
+        $tieneCreated = Schema::hasColumn($tabla, 'created_at');
+
+        if ($tieneFecha && $tieneCreated) return 'COALESCE(fecha, created_at)';
+        return $tieneFecha ? 'fecha' : 'created_at';
+    }
+
+    private function totalDelDia(string $dia): float
+    {
+        return (float) $this->ventasCobradas()
+            ->whereRaw('DATE(' . $this->exprFecha() . ') = ?', [$dia])
+            ->sum('total');
+    }
+
     public function index()
     {
-        $hoy = now()->toDateString();
+        $hoy  = now()->toDateString();
         $ayer = now()->subDay()->toDateString();
 
-        $pacientesHoy = Cita::delDia($hoy)->distinct('mascota_id')->count('mascota_id');
+        $pacientesHoy  = Cita::delDia($hoy)->distinct('mascota_id')->count('mascota_id');
         $pacientesAyer = Cita::delDia($ayer)->distinct('mascota_id')->count('mascota_id');
 
-        $citasHoy = Cita::delDia($hoy)->count();
+        $citasHoy  = Cita::delDia($hoy)->count();
         $citasAyer = Cita::delDia($ayer)->count();
 
-        $ventasHoy = Venta::whereDate('created_at', $hoy)->where('estado', 'pagada')->sum('total');
-        $ventasAyer = Venta::whereDate('created_at', $ayer)->where('estado', 'pagada')->sum('total');
+        $ventasHoy  = $this->totalDelDia($hoy);
+        $ventasAyer = $this->totalDelDia($ayer);
 
-        $inventarioBajo = Producto::stockBajo()->where('activo', true)->count();
+        $inventarioBajo      = Producto::stockBajo()->where('activo', true)->count();
         $mascotasRegistradas = Mascota::count();
 
         $pacientesRecientes = Mascota::with('cliente')
@@ -39,12 +82,34 @@ class DashboardController extends Controller
             ->take(3)
             ->get();
 
-        $ventasUltimos5Meses = Venta::where('estado', 'pagada')
-            ->where('created_at', '>=', now()->subMonths(5))
-            ->select(DB::raw("DATE_FORMAT(created_at, '%Y-%m') as mes"), DB::raw('SUM(total) as total'))
+        // Ventas de los últimos 5 meses (incluye el actual); los meses sin ventas salen en 0
+        $inicio = now()->startOfMonth()->subMonths(4);
+        $expr   = $this->exprFecha();
+
+        $porMes = $this->ventasCobradas()
+            ->whereRaw("$expr >= ?", [$inicio->toDateString()])
+            ->selectRaw("DATE_FORMAT($expr, '%Y-%m') as mes, SUM(total) as total")
             ->groupBy('mes')
-            ->orderBy('mes')
-            ->get();
+            ->pluck('total', 'mes');
+
+        $ventasMeses = collect();
+        for ($i = 0; $i < 5; $i++) {
+            $m = $inicio->copy()->addMonths($i);
+            $ventasMeses->push([
+                'mes'   => $m->format('Y-m'),
+                'label' => ucfirst($m->locale('es')->translatedFormat('M')),
+                'total' => (float) ($porMes[$m->format('Y-m')] ?? 0),
+            ]);
+        }
+
+        // Variación real contra ayer (null si ayer fue 0 y no se puede calcular)
+        $delta = function ($hoy, $ayer) {
+            if ($ayer == 0) return $hoy > 0 ? 100 : null;
+            return round((($hoy - $ayer) / $ayer) * 100);
+        };
+        $deltaPacientes = $delta($pacientesHoy, $pacientesAyer);
+        $deltaCitas     = $delta($citasHoy, $citasAyer);
+        $deltaVentas    = $delta($ventasHoy, $ventasAyer);
 
         return view('inicio', compact(
             'pacientesHoy', 'pacientesAyer',
@@ -52,7 +117,8 @@ class DashboardController extends Controller
             'ventasHoy', 'ventasAyer',
             'inventarioBajo', 'mascotasRegistradas',
             'pacientesRecientes', 'inventarioBajoLista',
-            'ventasUltimos5Meses'
+            'ventasMeses',
+            'deltaPacientes', 'deltaCitas', 'deltaVentas'
         ));
     }
 

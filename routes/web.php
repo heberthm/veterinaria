@@ -13,7 +13,7 @@ use App\Http\Controllers\AplicacionMascotaController;
 use App\Http\Controllers\PerfilController;
 use App\Http\Controllers\ProductoController;
 use App\Http\Controllers\ReporteController;
-use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\CompraController;
 use App\Http\Controllers\CajaController;
@@ -21,6 +21,7 @@ use App\Http\Controllers\VentaController;
 use App\Http\Controllers\VeterinarioController;
 use App\Http\Controllers\VacunacionController;
 use App\Http\Controllers\DesparasitacionAplicacionController;
+use App\Http\Controllers\RoleController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -99,11 +100,11 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     */
     Route::get('/citas', [CitaController::class, 'index'])->name('citas');
     Route::get('/citas/datatable', [CitaController::class, 'datatable'])->name('citas.datatable');
+    Route::get('/citas/eventos', [CitaController::class, 'getEvents'])->name('citas.eventos');
     Route::get('/citas/{id}', [CitaController::class, 'show'])->name('citas.show');
     Route::post('/citas', [CitaController::class, 'store'])->name('citas.store');
     Route::put('/citas/{id}', [CitaController::class, 'update'])->name('citas.update');
     Route::delete('/citas/{id}', [CitaController::class, 'destroy'])->name('citas.destroy');
-    Route::get('/citas/eventos', [CitaController::class, 'getEvents'])->name('citas.eventos');
     Route::put('/citas/{id}/estado', [CitaController::class, 'cambiarEstado'])->name('citas.estado');
     Route::get('/citas/{id}/detalle', [CitaController::class, 'detalle'])->name('citas.detalle');
 
@@ -155,7 +156,7 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::put('historias/{historia}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
     Route::delete('/historias/{id}', [HistoriaClinicaController::class, 'destroy'])->name('historias.destroy');
     Route::post('/historias/{id}/adjunto', [HistoriaClinicaController::class, 'uploadAttachment'])->name('historias.adjunto');
-    Route::put('/historias/consulta/{historia}', [HistoriaClinicaController::class, 'update'])->name('historias.update');
+    Route::put('/historias/consulta/{historia}', [HistoriaClinicaController::class, 'update'])->name('historias.consulta.update');
     Route::get('historias/{historia}/pdf', [HistoriaClinicaController::class, 'pdf'])->name('historias.pdf');
 
  /*
@@ -183,7 +184,6 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::delete('/vacunas/{id}', [VacunacionController::class, 'destroy'])->name('vacunas.destroy');
     Route::get('/vacunas/mascota/{mascotaId}', [VacunacionController::class, 'getByMascota'])->name('vacunas.mascota');
 
-    Route::get('/vacunas/{id}/detalle', [VacunacionController::class, 'show'])->name('vacunas.show');
 
 
      /*
@@ -292,13 +292,13 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     Route::get('/ventas/datatable', [VentaController::class, 'datatable'])->name('ventas.datatable');
     Route::get('/ventas/pos', [VentaController::class, 'pos'])->name('ventas.pos');
     Route::post('/ventas', [VentaController::class, 'store'])->name('ventas.store');
+    Route::get('/ventas/buscar-clientes', [VentaController::class, 'buscarClientes'])->name('ventas.buscar-clientes');
+    Route::get('/ventas/buscar-productos', [VentaController::class, 'buscarProductos'])->name('ventas.buscar-productos');
+    Route::get('/ventas/buscar-mascotas', [VentaController::class, 'buscarMascotas'])->name('ventas.buscar-mascotas');
     Route::get('/ventas/{id}', [VentaController::class, 'show'])->name('ventas.show');
     Route::delete('/ventas/{id}', [VentaController::class, 'destroy'])->name('ventas.destroy');
     Route::get('/ventas/{id}/pdf', [VentaController::class, 'generarPDF'])->name('ventas.pdf');
     Route::get('/ventas/{id}/detalle', [VentaController::class, 'detalle'])->name('ventas.detalle');
-    Route::get('/ventas/buscar-clientes', [VentaController::class, 'buscarClientes'])->name('ventas.buscar-clientes');
-    Route::get('/ventas/buscar-productos', [VentaController::class, 'buscarProductos'])->name('ventas.buscar-productos');
-    Route::get('/ventas/buscar-mascotas', [VentaController::class, 'buscarMascotas'])->name('ventas.buscar-mascotas');
     Route::get('/ventas/{venta}/imprimir', [VentaController::class, 'datosImpresion'])->name('ventas.imprimir');
    
 
@@ -323,12 +323,16 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     | Reportes
     |--------------------------------------------------------------------------
     */
+    // Alias para el menú actual (layouts/app.blade.php usa route('reportes'))
     Route::get('/reportes', [ReporteController::class, 'index'])->name('reportes');
-    Route::get('/reportes/ventas', [ReporteController::class, 'ventas'])->name('reportes.ventas');
-    Route::get('/reportes/citas', [ReporteController::class, 'citas'])->name('reportes.citas');
-    Route::get('/reportes/inventario', [ReporteController::class, 'inventario'])->name('reportes.inventario');
-    Route::get('/reportes/clientes', [ReporteController::class, 'clientes'])->name('reportes.clientes');
-    Route::get('/reportes/exportar-pdf', [ReporteController::class, 'exportarPDF'])->name('reportes.exportar');
+
+    Route::prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/index',     [ReporteController::class, 'index'])->name('index');
+        Route::get('/data',      [ReporteController::class, 'data'])->name('data');
+        Route::get('/historial', [ReporteController::class, 'historial'])->name('historial');
+        Route::get('/pdf',       [ReporteController::class, 'pdf'])->name('pdf');
+        Route::get('/csv',       [ReporteController::class, 'csv'])->name('csv');
+    });
 
    /*
     |--------------------------------------------------------------------------
@@ -336,8 +340,8 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     |--------------------------------------------------------------------------
     */
     // 🔥 RUTA 'perfil' - Debe coincidir con la que usa el modelo User
-    Route::get('/perfil/{id?}', [PerfilController::class, 'show'])->name('perfil');
     Route::get('/perfil/editar', [PerfilController::class, 'edit'])->name('perfil.editar');
+    Route::get('/perfil/{id?}', [PerfilController::class, 'show'])->name('perfil');
     Route::put('/perfil', [PerfilController::class, 'update'])->name('perfil.actualizar');
     Route::delete('/perfil', [PerfilController::class, 'destroy'])->name('perfil.eliminar');
 
@@ -346,18 +350,46 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     | Usuarios
     |--------------------------------------------------------------------------
     */
-    Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios');
-    Route::get('/usuarios/datatable', [UsuarioController::class, 'datatable'])->name('usuarios.datatable');
-    Route::get('/usuarios/{id}', [UsuarioController::class, 'show'])->name('usuarios.show');
-    Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
-    Route::put('/usuarios/{id}', [UsuarioController::class, 'update'])->name('usuarios.update');
-    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+    Route::get('/usuarios', [UserController::class, 'index'])->name('usuarios');
+    Route::get('/usuarios/lista', [UserController::class, 'index'])->name('users.index');   // antes de {user}
+    Route::post('/usuarios', [UserController::class, 'store'])->name('users.store');
+    Route::get('/usuarios/{user}', [UserController::class, 'show'])->name('users.show');
+    Route::put('/usuarios/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Roles y permisos
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles');
+    Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+    Route::put('/roles/{id}', [RoleController::class, 'update'])->name('roles.update');
+    Route::delete('/roles/{id}', [RoleController::class, 'destroy'])->name('roles.destroy');
+    Route::post('/roles/{id}/permisos', [RoleController::class, 'syncPermissions'])->name('roles.syncPermissions');
+    Route::get('/roles/{id}/permisos-actuales', [RoleController::class, 'getPermisosActuales'])->name('roles.getPermisosActuales');
 
     /*
     |--------------------------------------------------------------------------
     | Configuración
     |--------------------------------------------------------------------------
     */
-    Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion');
-    Route::post('/configuracion', [ConfiguracionController::class, 'update'])->name('configuracion.actualizar');
-});
+    Route::prefix('configuracion')->name('configuracion.')->group(function () {
+        Route::get('/', [ConfiguracionController::class, 'index'])->name('index');
+        Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion');
+        Route::post('/general',                    [ConfiguracionController::class, 'guardarGeneral'])->name('general');
+        Route::post('/facturacion',                [ConfiguracionController::class, 'guardarFacturacion'])->name('facturacion');
+        Route::post('/horario',                    [ConfiguracionController::class, 'guardarHorario'])->name('horario');
+
+        Route::get('/catalogos/{tipo}',            [ConfiguracionController::class, 'catalogoIndex'])->name('catalogos.index');
+        Route::post('/catalogos/sugeridos/{tipo}', [ConfiguracionController::class, 'catalogoSugeridos'])->name('catalogos.sugeridos');
+        Route::post('/catalogos',                  [ConfiguracionController::class, 'catalogoStore'])->name('catalogos.store');
+        Route::put('/catalogos/{id}',              [ConfiguracionController::class, 'catalogoUpdate'])->name('catalogos.update');
+        Route::delete('/catalogos/{id}',           [ConfiguracionController::class, 'catalogoDestroy'])->name('catalogos.destroy');
+
+        Route::get('/permisos/{rol}',              [ConfiguracionController::class, 'permisos'])->name('permisos');
+        Route::post('/permisos/{rol}',             [ConfiguracionController::class, 'guardarPermisos'])->name('permisos.guardar');
+    });
+
+}); // <-- cierra Route::middleware(['auth'])->group(...) abierto en la línea 67

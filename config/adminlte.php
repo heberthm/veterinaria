@@ -327,9 +327,10 @@ return [
 
     ['text' => 'Usuarios', 'route' => 'usuarios', 'icon' => 'far fa-fw fa-user'],
 
-    ['text' => 'Roles y Permisos', 'route' => 'perfil', 'icon' => 'fas fa-fw fa-user-shield'],
+   ['text' => 'Roles y Permisos', 'route' => 'roles.index', 'icon' => 'fas fa-fw fa-user-shield'],
 
-    ['text' => 'Configuración', 'url' => '#', 'icon' => 'fas fa-fw fa-cog'],
+
+    ['text' => 'Configuración', 'route' => 'configuracion.index', 'icon' => 'fas fa-fw fa-cog'],
 
 ],
 

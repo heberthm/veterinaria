@@ -1,221 +1,106 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Factura {{ $venta->numero_factura ?? $venta->id }}</title>
+    <meta charset="utf-8">
+    <title>Factura {{ $numero }}</title>
     <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: 11px;
-            color: #000;
-            margin: 0;
-            padding: 0;
-        }
-        
-        /* ---- Encabezado ---- */
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-        }
-        .header-table td {
-            vertical-align: top;
-        }
-        .titulo {
-            font-size: 26px;
-            font-weight: normal;
-            margin: 0 0 5px 0;
-        }
-        .subtitulo {
-            font-size: 11px;
-            margin: 2px 0;
-        }
-        .factura-text {
-            text-align: right;
-        }
-        .factura-text h2 {
-            font-size: 26px;
-            font-weight: normal;
-            margin: 0 0 8px 0;
-        }
-        .factura-text p {
-            margin: 3px 0;
-            font-size: 11px;
-        }
-
-        /* ---- Sección Cliente / Vendedor / Pago ---- */
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-            border-top: 2px solid #000;
-            padding-top: 10px;
-        }
-        .info-table td {
-            vertical-align: top;
-            width: 33.33%;
-            padding-top: 10px;
-        }
-        .info-title {
-            font-size: 9px;
-            text-transform: uppercase;
-            color: #555;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        .info-table p {
-            margin: 3px 0;
-            font-size: 11px;
-        }
-
-        /* ---- Tabla de Productos ---- */
-        .productos-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .productos-table th {
-            background-color: #0E1B30;
-            color: #ffffff;
-            font-size: 10px;
-            text-transform: uppercase;
-            padding: 8px;
-            border: 1px solid #0E1B30;
-            text-align: center;
-        }
-        .productos-table td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            font-size: 11px;
-        }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-
-        /* ---- Totales ---- */
-        .totales-table {
-            width: 250px;
-            float: right;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .totales-table td {
-            padding: 5px 10px;
-            font-size: 11px;
-            border: none;
-        }
-        .totales-table .label { text-align: left; }
-        .totales-table .value { text-align: right; }
-        .total-final td {
-            font-weight: bold;
-            font-size: 14px;
-            border-top: 2px solid #000;
-            padding-top: 8px;
-        }
-
-        /* ---- Footer ---- */
-        .footer {
-            text-align: center;
-            font-size: 10px;
-            color: #666;
-            margin-top: 50px;
-            border-top: 1px solid #ddd;
-            padding-top: 10px;
-            clear: both;
-        }
+        * { font-family: DejaVu Sans, sans-serif; }
+        body { font-size: 11px; color: #1e293b; margin: 0; }
+        h1 { font-size: 20px; margin: 0; }
+        .muted { color: #64748b; }
+        .right { text-align: right; }
+        .center { text-align: center; }
+        table { width: 100%; border-collapse: collapse; }
+        .cab td { vertical-align: top; }
+        .caja { border: 1px solid #cbd5e1; padding: 8px 10px; }
+        .caja p { margin: 2px 0; }
+        .lbl { color: #64748b; display: inline-block; width: 70px; }
+        .items { margin-top: 14px; }
+        .items th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px; font-size: 10.5px; }
+        .items td { border: 1px solid #e2e8f0; padding: 6px; }
+        .totales { width: 45%; margin-left: 55%; margin-top: 10px; }
+        .totales td { padding: 4px 6px; }
+        .totales .fin td { border-top: 2px solid #1e293b; font-weight: bold; font-size: 13px; }
+        .estado { display: inline-block; padding: 2px 8px; border: 1px solid #16a34a; color: #16a34a; font-size: 10px; font-weight: bold; }
+        .estado.anulada { border-color: #dc2626; color: #dc2626; }
+        .estado.pendiente { border-color: #d97706; color: #d97706; }
+        .pie { margin-top: 30px; text-align: center; color: #64748b; font-size: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- ENCABEZADO CON TABLA -->
-    <table class="header-table">
+    <table class="cab">
         <tr>
-            <td width="50%" style="text-align: left;">
-                <div class="titulo">VETCLOUD</div>
-                <div class="subtitulo">NIT: 000.000.000-0</div>
-                <div class="subtitulo">Calle 00 #00-00 · Ciudad</div>
-                <div class="subtitulo">Tel: (000) 000-0000</div>
+            <td style="width: 30%;">
+                <div style="font-size: 18px; font-weight: bold;">Factura de venta</div>
             </td>
-            <td width="50%" class="factura-text">
-                <h2>FACTURA</h2>
-                <p><strong>No.</strong> {{ $venta->numero_factura ?? $venta->id }}</p>
-                <p><strong>Fecha:</strong> {{ \Carbon\Carbon::parse($venta->fecha ?? $venta->created_at)->format('d/m/Y h:i a') }}</p>
-                <p><strong>Estado:</strong> {{ strtoupper($venta->estado ?? 'PAGADA') }}</p>
+            <td style="width: 40%;" class="center">
+                <div style="font-size: 26px; font-weight: bold; color: #0f172a;">VetFlow</div>
+                <div class="muted">Clínica Veterinaria</div>
+            </td>
+            <td style="width: 30%;" class="right">
+                <div style="font-size: 16px; font-weight: bold;">N° {{ $numero }}</div>
+                <div class="muted">{{ $fecha }}</div>
+                <div style="margin-top: 4px;"><span class="estado {{ $estado }}">{{ strtoupper($estado ?: '—') }}</span></div>
             </td>
         </tr>
     </table>
 
-    <!-- SECCIÓN DE INFORMACIÓN CON TABLA -->
-    <table class="info-table">
+    <table style="margin-top: 14px;">
         <tr>
-            <td>
-                <div class="info-title">Cliente</div>
-                <p><strong>Nombre:</strong> {{ $venta->cliente ? $venta->cliente->nombres . ' ' . $venta->cliente->apellidos : 'Consumidor Final' }}</p>
-                @if($venta->cliente && $venta->cliente->numero_documento)
-                    <p><strong>Cédula:</strong> {{ $venta->cliente->numero_documento }}</p>
-                @endif
+            <td style="width: 49%; vertical-align: top;" class="caja">
+                <p><strong>Cliente</strong></p>
+                <p><span class="lbl">Nombre:</span> {{ $cliente ? trim(($cliente->nombres ?? '') . ' ' . ($cliente->apellidos ?? '')) : 'Consumidor final' }}</p>
+                <p><span class="lbl">Cédula:</span> {{ $cliente->numero_documento ?? '—' }}</p>
+                <p><span class="lbl">Tel:</span> {{ $cliente->celular ?? '—' }}</p>
             </td>
-            <td>
-                <div class="info-title">Vendedor</div>
-                <p><strong>Nombre:</strong> {{ $venta->usuario->name ?? '—' }}</p>
-            </td>
-            <td>
-                <div class="info-title">Pago</div>
-                <p><strong>Método:</strong> {{ strtoupper($venta->metodo_pago ?? 'EFECTIVO') }}</p>
+            <td style="width: 2%;"></td>
+            <td style="width: 49%; vertical-align: top;" class="caja">
+                <p><strong>Venta</strong></p>
+                <p><span class="lbl">Vendedor:</span> {{ $vendedor }}</p>
+                <p><span class="lbl">Pago:</span> {{ $metodo }}</p>
+                <p><span class="lbl">Estado:</span> {{ ucfirst($estado ?: '—') }}</p>
             </td>
         </tr>
     </table>
 
-    <!-- TABLA DE PRODUCTOS -->
-    <table class="productos-table">
+    <table class="items">
         <thead>
             <tr>
-                <th style="text-align: left;">Descripción</th>
-                <th width="60">Cant.</th>
-                <th width="90">Vr. Unit.</th>
-                <th width="90">Subtotal</th>
+                <th class="center" style="width: 8%;">Cant.</th>
+                <th>Descripción</th>
+                <th class="right" style="width: 20%;">Vr. Unit.</th>
+                <th class="right" style="width: 20%;">Subtotal</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($venta->detalles as $detalle)
+            @forelse ($lineas as $l)
                 <tr>
-                    <td>{{ $detalle->nombre_producto ?? ($detalle->producto->nombre ?? 'Producto') }}</td>
-                    <td class="text-center">{{ $detalle->cantidad }}</td>
-                    <td class="text-right">$ {{ number_format($detalle->precio_unitario, 0, ',', '.') }}</td>
-                    <td class="text-right">$ {{ number_format($detalle->subtotal, 0, ',', '.') }}</td>
+                    <td class="center">{{ rtrim(rtrim(number_format($l['cantidad'], 2, ',', '.'), '0'), ',') }}</td>
+                    <td>{{ $l['descripcion'] }}</td>
+                    <td class="right">$ {{ number_format($l['precio_unitario'], 0, ',', '.') }}</td>
+                    <td class="right">$ {{ number_format($l['subtotal'], 0, ',', '.') }}</td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="4" class="center muted">Sin productos</td></tr>
+            @endforelse
         </tbody>
     </table>
 
-    <!-- TOTALES -->
-    <table class="totales-table">
-        <tr>
-            <td class="label">Subtotal</td>
-            <td class="value">$ {{ number_format($venta->subtotal, 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td class="label">Valor IVA</td>
-            <td class="value">$ {{ number_format($venta->iva ?? 0, 0, ',', '.') }}</td>
-        </tr>
-        @if($venta->descuento > 0)
-            <tr>
-                <td class="label">Descuento</td>
-                <td class="value">- $ {{ number_format($venta->descuento, 0, ',', '.') }}</td>
-            </tr>
+    <table class="totales">
+        <tr><td>Subtotal</td><td class="right">$ {{ number_format($subtotal, 0, ',', '.') }}</td></tr>
+        @if ($descuento > 0)
+            <tr><td>Descuento</td><td class="right">- $ {{ number_format($descuento, 0, ',', '.') }}</td></tr>
         @endif
-        <tr class="total-final">
-            <td class="label">TOTAL</td>
-            <td class="value">$ {{ number_format($venta->total, 0, ',', '.') }}</td>
-        </tr>
+        <tr><td>IVA</td><td class="right">$ {{ number_format($iva, 0, ',', '.') }}</td></tr>
+        <tr class="fin"><td>Total</td><td class="right">$ {{ number_format($total, 0, ',', '.') }}</td></tr>
     </table>
 
-    <!-- FOOTER -->
-    <div class="footer">
-        Gracias por preferirnos · Documento generado por VetCloud POS
-        @if($venta->usuario)
-            <br>Atendido por: {{ $venta->usuario->name }}
-        @endif
-    </div>
+    @if (!empty($venta->observacion) || !empty($venta->observaciones))
+        <p class="muted" style="margin-top: 14px;"><strong>Observaciones:</strong> {{ $venta->observacion ?? $venta->observaciones }}</p>
+    @endif
+
+    <div class="pie">Gracias por su compra</div>
 
 </body>
 </html>

@@ -53,9 +53,13 @@ class Venta extends Model
     }
 
     // 🔥 RELACIÓN CON USUARIO - DEBE SER 'usuario_id'
-    public function usuario()
+     public function usuario()
     {
-        return $this->belongsTo(User::class, 'usuario_id');
+        // 🔥 Si la columna en tu tabla es 'usurio_id' (con error de tipeo)
+        return $this->belongsTo(User::class, 'usurio_id');
+        
+        // Si es 'user_id', usa:
+        // return $this->belongsTo(User::class, 'user_id');
     }
 
     public function detalles()

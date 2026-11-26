@@ -1738,120 +1738,103 @@ function htmlTicket(venta) {
  function htmlFactura(venta) {
     const items = itemsVenta(venta).map((it) => `
         <tr>
-            <td>${it.nombre}</td>
             <td class="fc-center">${it.cant}</td>
-            <td class="fc-num">${money(it.precio)}</td>
-            <td class="fc-num">${money(it.sub)}</td>
+            <td>${it.nombre}</td>
+            <td class="fc-right">${money(it.precio)}</td>
+            <td class="fc-right">${money(it.sub)}</td>
         </tr>
     `).join('');
 
-    const num = venta.consecutivo || venta.numero_factura || venta.id;
+    const num      = venta.consecutivo || venta.numero_factura || venta.id;
+    const estado   = String(estadoVenta(venta) || '');
+    const estadoCl = estado.toLowerCase();
+    const cliente  = venta.cliente ? nombreCliente(venta) : 'Consumidor final';
+    const tel      = venta.cliente?.celular || venta.cliente?.telefono || '—';
+    const doc      = venta.cliente?.numero_documento || '—';
+    const desc     = Number(descuentoVenta(venta)) || 0;
 
     return `
         <style>
-            .fc-wrap { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #000; }
-            .fc-wrap .fc-header {
-                display: flex; justify-content: space-between; align-items: flex-start;
-                border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 16px;
-            }
-            .fc-wrap .fc-header h2 { margin: 0 0 6px; font-size: 24px; }
-            .fc-wrap .fc-header p { margin: 3px 0; font-size: 11px; }
-            .fc-wrap .fc-header-right { text-align: right; }
-            .fc-wrap .fc-info {
-                display: flex; justify-content: space-between; gap: 20px;
-                margin-bottom: 18px; padding-bottom: 12px;
-                border-bottom: 1px solid #ccc;
-            }
-            .fc-wrap .fc-info-col { flex: 1; }
-            .fc-wrap .fc-info-col strong {
-                display: block; font-size: 10px; color: #555;
-                text-transform: uppercase; margin-bottom: 6px; letter-spacing: .5px;
-            }
-            .fc-wrap .fc-info-col p { margin: 2px 0; font-size: 11px; }
-            .fc-wrap .fc-tabla { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
-            .fc-wrap .fc-tabla th,
-            .fc-wrap .fc-tabla td {
-                border: 1px solid #ccc; padding: 8px 10px;
-                text-align: left; font-size: 11px;
-            }
-            .fc-wrap .fc-tabla th { background: #0E1B30; color: #fff; font-weight: 700; text-align: center; }
-            .fc-wrap .fc-tabla td.fc-num { text-align: right; }
-            .fc-wrap .fc-tabla td.fc-center { text-align: center; }
-            .fc-wrap .fc-totales .fc-num { text-align: right; }
-            .fc-wrap .fc-info-col .fc-lbl { font-weight: 700; }
-            .fc-wrap .fc-totales { display: flex; justify-content: flex-end; }
-            .fc-wrap .fc-totales table { min-width: 260px; font-size: 12px; }
-            .fc-wrap .fc-totales td { padding: 5px 10px; }
-            .fc-wrap .fc-total td {
-                font-weight: 700; font-size: 15px;
-                border-top: 2px solid #000; padding-top: 8px;
-            }
-            .fc-wrap .fc-footer {
-                margin-top: 26px; text-align: center; font-size: 10px; color: #666;
-                border-top: 1px solid #ddd; padding-top: 12px;
-            }
+            .fc-wrap { font-family: 'DejaVu Sans', Arial, Helvetica, sans-serif; font-size: 11px; color: #1e293b; }
+            .fc-wrap .fc-muted { color: #64748b; }
+            .fc-wrap .fc-right { text-align: right; }
+            .fc-wrap .fc-center { text-align: center; }
+            .fc-wrap table { width: 100%; border-collapse: collapse; }
+            .fc-wrap .fc-cab td { vertical-align: top; }
+            .fc-wrap .fc-titulo { font-size: 18px; font-weight: 700; margin: 0; }
+            .fc-wrap .fc-clinica { font-size: 26px; font-weight: 800; letter-spacing: .5px; margin: 0; color: #0f172a; }
+            .fc-wrap .fc-num { font-size: 16px; font-weight: 700; }
+            .fc-wrap .fc-caja { border: 1px solid #cbd5e1; padding: 8px 10px; vertical-align: top; }
+            .fc-wrap .fc-caja p { margin: 2px 0; }
+            .fc-wrap .fc-lbl { color: #64748b; display: inline-block; width: 70px; }
+            .fc-wrap .fc-items { margin-top: 14px; }
+            .fc-wrap .fc-items th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px; font-size: 10.5px; }
+            .fc-wrap .fc-items td { border: 1px solid #e2e8f0; padding: 6px; }
+            .fc-wrap .fc-totales { width: 45%; margin-left: 55%; margin-top: 10px; }
+            .fc-wrap .fc-totales td { padding: 4px 6px; }
+            .fc-wrap .fc-totales .fc-fin td { border-top: 2px solid #1e293b; font-weight: 700; font-size: 13px; }
+            .fc-wrap .fc-estado { display: inline-block; padding: 2px 8px; border: 1px solid #16a34a; color: #16a34a; font-size: 10px; font-weight: 700; }
+            .fc-wrap .fc-estado.anulada { border-color: #dc2626; color: #dc2626; }
+            .fc-wrap .fc-estado.pendiente { border-color: #d97706; color: #d97706; }
+            .fc-wrap .fc-pie { margin-top: 30px; text-align: center; color: #64748b; font-size: 10px; }
         </style>
 
         <div class="fc-wrap">
-            <div class="fc-header">
-                <div class="fc-header-left">
-                    <h2>VETCLOUD</h2>
-                    <p>NIT: 000.000.000-0</p>
-                    <p>${venta.tenant?.direccion || 'Calle 00 #00-00 · Ciudad'}</p>
-                    <p>Tel: (000) 000-0000</p>
-                </div>
-                <div class="fc-header-right">
-                    <h2>FACTURA</h2>
-                    <p><strong>No.</strong> ${num}</p>
-                    <p><strong>Fecha:</strong> ${fechaVenta(venta)}</p>
-                    <p><strong>Estado:</strong> ${estadoVenta(venta)}</p>
-                </div>
-            </div>
-
-            <div class="fc-info">
-                <div class="fc-info-col">
-                    <strong>Cliente</strong>
-                    <p><span class="fc-lbl">Nombre:</span> ${venta.cliente ? nombreCliente(venta) : 'Consumidor final'}</p>
-                    ${venta.cliente?.numero_documento ? `<p><span class="fc-lbl">Cédula:</span> ${venta.cliente.numero_documento}</p>` : ''}
-                    ${(venta.cliente?.telefono || venta.cliente?.celular) ? `<p><span class="fc-lbl">Tel:</span> ${venta.cliente.telefono || venta.cliente.celular}</p>` : ''}
-                </div>
-                <div class="fc-info-col">
-                    <strong>Vendedor</strong>
-                    <p><span class="fc-lbl">Nombre:</span> ${nombreVendedor(venta) || '—'}</p>
-                </div>
-                <div class="fc-info-col">
-                    <strong>Pago</strong>
-                    <p>Método: ${(venta.metodo_pago || '').toUpperCase()}</p>
-                    ${venta.referencia_pago ? `<p>Ref: ${venta.referencia_pago}</p>` : ''}
-                    ${venta.cambio ? `<p>Cambio: ${money(venta.cambio)}</p>` : ''}
-                </div>
-            </div>
-
-            <table class="fc-tabla">
-                <thead>
-                    <tr>
-                        <th>Descripción</th>
-                        <th class="fc-center">Cant.</th>
-                        <th class="fc-num">Vr. Unit.</th>
-                        <th class="fc-num">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>${items}</tbody>
+            <table class="fc-cab">
+                <tr>
+                    <td style="width:30%;">
+                        <p class="fc-titulo">Factura de venta</p>
+                    </td>
+                    <td style="width:40%;" class="fc-center">
+                        <p class="fc-clinica">VetFlow</p>
+                        <div class="fc-muted">Clínica Veterinaria</div>
+                    </td>
+                    <td style="width:30%;" class="fc-right">
+                        <div class="fc-num">N° ${num}</div>
+                        <div class="fc-muted">${fechaVenta(venta)}</div>
+                        <div style="margin-top:4px;"><span class="fc-estado ${estadoCl}">${(estado || '—').toUpperCase()}</span></div>
+                    </td>
+                </tr>
             </table>
 
-            <div class="fc-totales">
-                <table>
-                    <tr><td>Subtotal</td><td class="fc-num">${money(venta.subtotal)}</td></tr>
-                    <tr><td>Valor IVA</td><td class="fc-num">${money(ivaVenta(venta))}</td></tr>
-                    ${Number(descuentoVenta(venta)) ? `<tr><td>Descuento</td><td class="fc-num">-${money(descuentoVenta(venta))}</td></tr>` : ''}
-                    <tr class="fc-total"><td>TOTAL</td><td class="fc-num">${money(venta.total)}</td></tr>
-                </table>
-            </div>
+            <table style="margin-top:14px;">
+                <tr>
+                    <td style="width:49%;" class="fc-caja">
+                        <p><strong>Cliente</strong></p>
+                        <p><span class="fc-lbl">Nombre:</span> ${cliente}</p>
+                        <p><span class="fc-lbl">Cédula:</span> ${doc}</p>
+                        <p><span class="fc-lbl">Tel:</span> ${tel}</p>
+                    </td>
+                    <td style="width:2%;"></td>
+                    <td style="width:49%;" class="fc-caja">
+                        <p><strong>Venta</strong></p>
+                        <p><span class="fc-lbl">Vendedor:</span> ${nombreVendedor(venta) || '—'}</p>
+                        <p><span class="fc-lbl">Pago:</span> ${(venta.metodo_pago || '—').toString().replace(/^./, c => c.toUpperCase())}</p>
+                        <p><span class="fc-lbl">Estado:</span> ${estado ? estado.charAt(0).toUpperCase() + estado.slice(1) : '—'}</p>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="fc-footer">
-                Gracias por preferirnos · Documento generado por VetCloud POS<br>
-                ${venta.usuario ? `Atendido por: ${venta.usuario.name || venta.usuario.nombre || ''}` : ''}
-            </div>
+            <table class="fc-items">
+                <thead>
+                    <tr>
+                        <th class="fc-center" style="width:8%;">Cant.</th>
+                        <th>Descripción</th>
+                        <th class="fc-right" style="width:20%;">Vr. Unit.</th>
+                        <th class="fc-right" style="width:20%;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>${items || '<tr><td colspan="4" class="fc-center fc-muted">Sin productos</td></tr>'}</tbody>
+            </table>
+
+            <table class="fc-totales">
+                <tr><td>Subtotal</td><td class="fc-right">${money(venta.subtotal)}</td></tr>
+                ${desc ? `<tr><td>Descuento</td><td class="fc-right">-${money(desc)}</td></tr>` : ''}
+                <tr><td>IVA</td><td class="fc-right">${money(ivaVenta(venta))}</td></tr>
+                <tr class="fc-fin"><td>Total</td><td class="fc-right">${money(venta.total)}</td></tr>
+            </table>
+
+            <div class="fc-pie">Gracias por su compra</div>
         </div>
     `;
 }

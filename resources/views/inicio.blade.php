@@ -26,7 +26,7 @@
             <div class="vc-stat__label">Pacientes Hoy</div>
             <div class="vc-stat__value">{{ $pacientesHoy ?? 0 }}</div>
             <span class="vc-stat__sub">
-                <span class="vc-stat__delta up"><i class="fas fa-arrow-up"></i> 12%</span> vs ayer
+                @isset($deltaPacientes)<span class="vc-stat__delta {{ $deltaPacientes >= 0 ? 'up' : 'down' }}"><i class="fas fa-arrow-{{ $deltaPacientes >= 0 ? 'up' : 'down' }}"></i> {{ abs($deltaPacientes) }}%</span> vs ayer@else<span class="text-muted">Sin datos de ayer</span>@endisset
             </span>
         </div>
     </div>
@@ -37,7 +37,7 @@
             <div class="vc-stat__label">Citas Hoy</div>
             <div class="vc-stat__value">{{ $citasHoy ?? 0 }}</div>
             <span class="vc-stat__sub">
-                <span class="vc-stat__delta up"><i class="fas fa-arrow-up"></i> 25%</span> vs ayer
+                @isset($deltaCitas)<span class="vc-stat__delta {{ $deltaCitas >= 0 ? 'up' : 'down' }}"><i class="fas fa-arrow-{{ $deltaCitas >= 0 ? 'up' : 'down' }}"></i> {{ abs($deltaCitas) }}%</span> vs ayer@else<span class="text-muted">Sin datos de ayer</span>@endisset
             </span>
         </div>
     </div>
@@ -48,7 +48,7 @@
             <div class="vc-stat__label">Ventas Hoy</div>
             <div class="vc-stat__value">${{ number_format($ventasHoy ?? 0, 0, ',', '.') }}</div>
             <span class="vc-stat__sub">
-                <span class="vc-stat__delta up"><i class="fas fa-arrow-up"></i> 18%</span> vs ayer
+                @isset($deltaVentas)<span class="vc-stat__delta {{ $deltaVentas >= 0 ? 'up' : 'down' }}"><i class="fas fa-arrow-{{ $deltaVentas >= 0 ? 'up' : 'down' }}"></i> {{ abs($deltaVentas) }}%</span> vs ayer@else<span class="text-muted">Sin datos de ayer</span>@endisset
             </span>
         </div>
     </div>
@@ -339,20 +339,27 @@ document.addEventListener('DOMContentLoaded', () => {
 {{-- ===================== GRÁFICA DE VENTAS ===================== --}}
 @push('js')
 <script>
+    (function iniciarGraficaVentas() {
+    // Chart.js puede no venir del layout: se carga si falta
+    if (typeof Chart === 'undefined') {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+        sc.onload = iniciarGraficaVentas;
+        document.head.appendChild(sc);
+        return;
+    }
     const ctxVentas = document.getElementById('chartVentas');
 
-    const ventasData = @json($ventasUltimos5Meses->pluck('total') ?? []);
-    const ventasLabels = @json($ventasUltimos5Meses->pluck('mes')->map(function ($mes) {
-        return \Carbon\Carbon::createFromFormat('Y-m', $mes)->translatedFormat('M');
-    }) ?? []);
+    const ventasLabels = @json($ventasMeses->pluck('label'));
+    const ventasData   = @json($ventasMeses->pluck('total'));
 
     new Chart(ctxVentas, {
         type: 'line',
         data: {
-            labels: ventasLabels.length ? ventasLabels : ['Ene', 'Feb', 'Mar', 'Abr', 'May'],
+            labels: ventasLabels,
             datasets: [{
                 label: 'Ventas (COP)',
-                data: ventasData.length ? ventasData : [8000000, 15000000, 22000000, 28000000, 38000000],
+                data: ventasData,
                 borderColor: '#2F6FED',
                 backgroundColor: 'rgba(47,111,237,0.08)',
                 fill: true,
@@ -375,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scales: {
                 y: {
                     ticks: {
-                        callback: (value) => (value / 1000000) + 'M',
+                        callback: (value) => value >= 1000000 ? (value / 1000000) + 'M' : '$' + Number(value).toLocaleString('es-CO'),
                         color: '#8996AC',
                     },
                     grid: { color: '#EEF1F6' }
@@ -387,5 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+    })();    
 </script>
 @endpush

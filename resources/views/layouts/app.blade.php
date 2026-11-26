@@ -66,28 +66,19 @@
 @endpush
 
 {{-- Add common CSS customizations --}}
-
 @push('css')
 
 <!-- CSS propio de VetCloud (pixel-match con el diseño) -->
     <link rel="stylesheet" href="{{ asset('css/vetcloud.css') }}">
 
+    {{-- Modo claro / oscuro (después de vetcloud.css) --}}
+    <link rel="stylesheet" href="{{ asset('css/tema-oscuro.css') }}">
+    <script src="{{ asset('js/tema.js') }}"></script>
+
   @include('adminlte::plugins', ['type' => 'css'])
   @yield('css')
 
-
     <style type="text/css">
-        {{-- You can add AdminLTE customizations here --}}      
-
-               
-        /*
-                .card-header {
-                    border-bottom: none;
-                }
-                .card-title {
-                    font-weight: 600;
-                }
-                */
+        ...
     </style>
 @endpush
-
