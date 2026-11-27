@@ -414,7 +414,12 @@
         border: 1px solid #D5DCE8; background: #fff; color: #475569; border-radius: 999px;
         padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
     }
-    .cf-rol.is-active { background: #2F6FED; border-color: #2F6FED; color: #fff; }
+    .cf-rol:hover { border-color: #2F6FED; color: #2F6FED; }
+    .cf-rol.is-active, .cf-rol.is-active:hover { background: #2F6FED !important; border-color: #2F6FED !important; color: #fff !important; }
+    /* modo oscuro: no seleccionado en gris oscuro, seleccionado en azul (con prioridad sobre cualquier otro estilo) */
+    html[data-theme="dark"] .cf-roles .cf-rol:not(.is-active) { background: #273449 !important; border-color: #334155 !important; color: #94a3b8 !important; }
+    html[data-theme="dark"] .cf-roles .cf-rol.is-active,
+    html[data-theme="dark"] .cf-roles .cf-rol.is-active:hover { background: #2F6FED !important; border-color: #2F6FED !important; color: #fff !important; }
 
     .cf-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
     .cf-badge.ok { background: #DCFCE7; color: #15803d; }

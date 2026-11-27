@@ -376,12 +376,12 @@ Route::get('/dashboard/citas-eventos', [DashboardController::class, 'eventos'])-
     |--------------------------------------------------------------------------
     */
     Route::prefix('configuracion')->name('configuracion.')->group(function () {
+        Route::get('/logo', [ConfiguracionController::class, 'logo'])->name('logo');
         Route::get('/', [ConfiguracionController::class, 'index'])->name('index');
         Route::get('/configuracion', [ConfiguracionController::class, 'index'])->name('configuracion');
         Route::post('/general',                    [ConfiguracionController::class, 'guardarGeneral'])->name('general');
         Route::post('/facturacion',                [ConfiguracionController::class, 'guardarFacturacion'])->name('facturacion');
         Route::post('/horario',                    [ConfiguracionController::class, 'guardarHorario'])->name('horario');
-
         Route::get('/catalogos/{tipo}',            [ConfiguracionController::class, 'catalogoIndex'])->name('catalogos.index');
         Route::post('/catalogos/sugeridos/{tipo}', [ConfiguracionController::class, 'catalogoSugeridos'])->name('catalogos.sugeridos');
         Route::post('/catalogos',                  [ConfiguracionController::class, 'catalogoStore'])->name('catalogos.store');

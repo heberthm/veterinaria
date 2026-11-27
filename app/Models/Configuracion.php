@@ -86,7 +86,12 @@ class Configuracion extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo ? asset('storage/' . $this->logo) : null;
+        if (! $this->logo) {
+            return null;
+        }
+
+        // Se sirve desde Laravel (no depende de `storage:link` ni de enlaces simbólicos en Windows)
+        return route('configuracion.logo', ['v' => optional($this->updated_at)->timestamp ?? 1]);
     }
 
     /** ¿Existe ya la tabla? (evita errores si aún no se ejecutó la migración) */

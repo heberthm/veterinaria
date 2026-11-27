@@ -435,9 +435,9 @@
                     </div>
 
                     <div class="hc-pet-actions">
-                        <a class="hc-btn hc-btn--outline-blue" href="{{ $ruta('mascotas.show', $m->id ?? 0) }}">
-                            <i class="fas fa-paw"></i> Ver perfil de mascota
-                        </a>
+                        <button type="button" class="hc-btn hc-btn--outline-blue" data-toggle="modal" data-target="#modalHerramientas">
+                            <i class="fas fa-tools"></i> Herramientas
+                        </button>
                         <button type="button" class="hc-btn hc-btn--icon" title="Más opciones"><i class="fas fa-ellipsis-h"></i></button>
                     </div>
                 </div>
@@ -1228,6 +1228,624 @@
     </div>
   </div>
 </div>
+
+{{-- ============================================================ --}}
+{{-- MODAL «Herramientas»: certificados, consentimientos, valores  --}}
+{{-- normales de laboratorio y dosis de alimento                   --}}
+{{-- (usa $m, $cli y $edad de esta misma vista)                    --}}
+{{-- ============================================================ --}}
+@php
+    $herrCfg = null;
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
+            $herrCfg = \App\Models\Configuracion::deTenant((int) (auth()->user()->tenant_id ?? 1));
+        }
+    } catch (\Throwable $e) {
+        $herrCfg = null;
+    }
+
+    $herrDatos = [
+        'clinica' => [
+            'nombre'    => $herrCfg->nombre_clinica ?? 'VetFlow - Clínica Veterinaria',
+            'nit'       => $herrCfg->nit ?? '',
+            'direccion' => $herrCfg->direccion ?? '',
+            'ciudad'    => $herrCfg->ciudad ?? '',
+            'telefono'  => $herrCfg->telefono ?? '',
+            'email'     => $herrCfg->email ?? '',
+        ],
+        'mascota' => [
+            'nombre'   => $m->nombre ?? '',
+            'especie'  => $m->especie ?? '',
+            'raza'     => $m->raza ?? '',
+            'sexo'     => ($m->genero ?? '') !== '' ? (str_starts_with(strtolower((string) $m->genero), 'm') ? 'Macho' : 'Hembra') : '',
+            'edad'     => $edad ?? '',
+            'peso'     => $m->peso ?? '',
+            'color'    => $m->color ?? '',
+            'microchip'=> $m->microchip ?? '',
+        ],
+        'propietario' => [
+            'nombre'    => $cli?->nombreCompleto() ?? '',
+            'documento' => trim(($cli->tipo_documento ?? '') . ' ' . ($cli->numero_documento ?? '')),
+        ],
+        'veterinario' => auth()->user()->name ?? '',
+    ];
+@endphp
+
+<style>
+    #modalHerramientas .nav-tabs { border-bottom: 1px solid #E2E8F0; flex-wrap: nowrap; overflow-x: auto; }
+    #modalHerramientas .nav-tabs .nav-link { font-size: 12.5px; font-weight: 600; white-space: nowrap; color: #64748B; padding: 9px 14px; }
+    #modalHerramientas .nav-tabs .nav-link i { margin-right: 6px; }
+    #modalHerramientas .nav-tabs .nav-link { border-radius: 8px 8px 0 0; margin-right: 4px; }
+    #modalHerramientas .nav-tabs .nav-link:not(.active):hover { background: #EFF5FF; color: #2563EB; border-color: transparent; }
+    #modalHerramientas .nav-tabs .nav-link.active,
+    #modalHerramientas .nav-tabs .nav-link.active:hover { background: #2563EB !important; border-color: #2563EB !important; color: #fff !important; }
+    /* modo oscuro */
+    html[data-theme="dark"] #modalHerramientas .nav-tabs .nav-link:not(.active) { background: transparent !important; color: #94a3b8 !important; border-color: transparent !important; }
+    html[data-theme="dark"] #modalHerramientas .nav-tabs .nav-link:not(.active):hover { background: #273449 !important; color: #93c5fd !important; }
+    html[data-theme="dark"] #modalHerramientas .nav-tabs .nav-link.active,
+    html[data-theme="dark"] #modalHerramientas .nav-tabs .nav-link.active:hover { background: #2563EB !important; border-color: #2563EB !important; color: #fff !important; }
+    #modalHerramientas .tab-pane { padding-top: 16px; }
+    #modalHerramientas .hh-acciones { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+
+    .hh-modal .modal-content { border-radius: 14px; border: none; }
+    .hh-modal .modal-header { border-bottom: 1px solid #E2E8F0; }
+    .hh-modal .modal-title { font-weight: 700; font-size: 16px; }
+    .hh-modal .modal-title i { color: #2563EB; margin-right: 6px; }
+    .hh-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 575px) { .hh-row { grid-template-columns: 1fr; } }
+    .hh-paciente { background: #F1F5F9; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; margin-bottom: 14px; }
+    .hh-paciente b { font-weight: 600; }
+    .hh-texto { min-height: 230px; line-height: 1.5; font-size: 13px; }
+
+    .hh-tabla-wrap { max-height: 56vh; overflow: auto; border: 1px solid #E2E8F0; border-radius: 10px; }
+    .hh-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hh-tabla th { position: sticky; top: 0; background: #F8FAFC; color: #2563EB; text-align: left; padding: 9px 12px; font-size: 12.5px; z-index: 1; }
+    .hh-tabla td { padding: 9px 12px; border-top: 1px solid #EEF1F6; }
+    .hh-tabla tr.hh-grupo td { background: #EFF5FF; color: #1D4ED8; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+    .hh-tabla td.hh-sel { font-weight: 700; }
+    .hh-nota { font-size: 11.5px; color: #64748B; margin-top: 10px; }
+
+    .hh-result { margin-top: 14px; border: 1px solid #BFDBFE; background: #EFF6FF; border-radius: 10px; padding: 14px 16px; }
+    .hh-result .hh-big { font-size: 26px; font-weight: 800; color: #1D4ED8; line-height: 1.1; }
+    .hh-result small { color: #64748B; display: block; }
+    .hh-result .hh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+    .hh-result .hh-grid div { background: #fff; border-radius: 8px; padding: 8px 10px; }
+    .hh-result .hh-grid b { display: block; font-size: 15px; }
+    .hh-notas li { margin-bottom: 8px; }
+    .hh-notas { padding-left: 18px; font-size: 12.5px; margin-top: 18px; }
+</style>
+
+
+<div class="modal fade hc-page hh-modal" id="modalHerramientas" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-tools"></i> Herramientas</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="hh-paciente" data-hh="paciente"></div>
+
+        <ul class="nav nav-tabs" role="tablist">
+          <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#hhTabCert" role="tab"><i class="fas fa-certificate"></i>Certificados</a></li>
+          <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#hhTabCons" role="tab"><i class="fas fa-file-signature"></i>Consentimientos</a></li>
+          <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#hhTabLab" role="tab"><i class="fas fa-vial"></i>Valores de laboratorio</a></li>
+          <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#hhTabAli" role="tab"><i class="fas fa-bone"></i>Dosis de alimento</a></li>
+        </ul>
+
+        <div class="tab-content">
+
+          {{-- ===== Certificados ===== --}}
+          <div class="tab-pane fade show active" id="hhTabCert" role="tabpanel">
+            <div class="hh-row">
+              <div class="hc-block">
+                <label class="hc-label" for="hhCertTipo">Tipo de certificado</label>
+                <select id="hhCertTipo" class="hc-input">
+                  <option value="salud">Certificado de salud</option>
+                  <option value="vacunacion">Certificado de vacunación</option>
+                  <option value="viaje">Certificado de viaje</option>
+                  <option value="esterilizacion">Certificado de esterilización</option>
+                  <option value="defuncion">Certificado de defunción</option>
+                  <option value="general">Certificado médico veterinario</option>
+                </select>
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhCertFecha">Fecha</label>
+                <input type="date" id="hhCertFecha" class="hc-input">
+              </div>
+            </div>
+            <div class="hh-row">
+              <div class="hc-block" id="hhCertDestinoBox" hidden>
+                <label class="hc-label" for="hhCertDestino">Destino del viaje</label>
+                <input type="text" id="hhCertDestino" class="hc-input" maxlength="120" placeholder="Ej: Bogotá, Colombia">
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhCertTP">Tarjeta profesional del veterinario</label>
+                <input type="text" id="hhCertTP" class="hc-input" maxlength="40" placeholder="Ej: T.P. 12345">
+              </div>
+            </div>
+            <div class="hc-block mb-0">
+              <label class="hc-label" for="hhCertTexto">Texto del certificado <small class="text-muted">(puedes editarlo)</small></label>
+              <textarea id="hhCertTexto" class="hc-input hh-texto" rows="9"></textarea>
+            </div>
+            <div class="hh-acciones">
+              <button type="button" class="hc-btn" id="hhCertRegenerar"><i class="fas fa-sync-alt"></i> Restablecer texto</button>
+              <button type="button" class="hc-btn hc-btn--primary" id="hhCertImprimir"><i class="fas fa-print"></i> Imprimir / PDF</button>
+            </div>
+          </div>
+
+          {{-- ===== Consentimientos ===== --}}
+          <div class="tab-pane fade" id="hhTabCons" role="tabpanel">
+            <div class="hh-row">
+              <div class="hc-block">
+                <label class="hc-label" for="hhConsTipo">Tipo de consentimiento</label>
+                <select id="hhConsTipo" class="hc-input">
+                  <option value="cirugia">Procedimiento quirúrgico</option>
+                  <option value="anestesia">Anestesia / sedación</option>
+                  <option value="hospitalizacion">Hospitalización</option>
+                  <option value="eutanasia">Eutanasia</option>
+                  <option value="diagnostico">Procedimiento diagnóstico</option>
+                  <option value="esterilizacion">Esterilización</option>
+                </select>
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhConsFecha">Fecha</label>
+                <input type="date" id="hhConsFecha" class="hc-input">
+              </div>
+            </div>
+            <div class="hh-row">
+              <div class="hc-block">
+                <label class="hc-label" for="hhConsProc">Procedimiento</label>
+                <input type="text" id="hhConsProc" class="hc-input" maxlength="160" placeholder="Ej: Ovariohisterectomía">
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhConsTP">Tarjeta profesional del veterinario</label>
+                <input type="text" id="hhConsTP" class="hc-input" maxlength="40" placeholder="Ej: T.P. 12345">
+              </div>
+            </div>
+            <div class="hc-block mb-0">
+              <label class="hc-label" for="hhConsTexto">Texto del consentimiento <small class="text-muted">(puedes editarlo)</small></label>
+              <textarea id="hhConsTexto" class="hc-input hh-texto" rows="10"></textarea>
+            </div>
+            <div class="hh-acciones">
+              <button type="button" class="hc-btn" id="hhConsRegenerar"><i class="fas fa-sync-alt"></i> Restablecer texto</button>
+              <button type="button" class="hc-btn hc-btn--primary" id="hhConsImprimir"><i class="fas fa-print"></i> Imprimir / PDF</button>
+            </div>
+          </div>
+
+          {{-- ===== Valores normales de laboratorio ===== --}}
+          <div class="tab-pane fade" id="hhTabLab" role="tabpanel">
+            <div class="hc-block">
+              <input type="search" id="hhLabBuscar" class="hc-input" placeholder="Buscar (ej: hematocrito, creatinina, ALT)..." autocomplete="off">
+            </div>
+            <div class="hh-tabla-wrap">
+              <table class="hh-tabla">
+                <thead><tr><th>Muestra</th><th>Unidades</th><th>Perro</th><th>Gato</th></tr></thead>
+                <tbody id="hhLabBody"></tbody>
+              </table>
+            </div>
+            <p class="hh-nota">Valores de referencia orientativos. Pueden variar según el laboratorio, el método y la edad; interprete siempre con el rango impreso en el informe del laboratorio. La columna de la especie del paciente se resalta.</p>
+          </div>
+
+          {{-- ===== Dosis de alimento ===== --}}
+          <div class="tab-pane fade" id="hhTabAli" role="tabpanel">
+            <p style="font-size:12px;margin-bottom:12px;">Los campos con asterisco ( * ) son obligatorios.</p>
+            <div class="hh-row">
+              <div class="hc-block">
+                <label class="hc-label" for="hhAliEspecie">Especie</label>
+                <select id="hhAliEspecie" class="hc-input">
+                  <option value="perro">Perro</option>
+                  <option value="gato">Gato</option>
+                </select>
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhAliEtapa">Etapa *</label>
+                <select id="hhAliEtapa" class="hc-input"></select>
+              </div>
+            </div>
+            <div class="hh-row">
+              <div class="hc-block">
+                <label class="hc-label" for="hhAliPeso">Peso (kg) *</label>
+                <input type="number" id="hhAliPeso" class="hc-input" min="0.1" max="120" step="0.1" placeholder="Peso">
+              </div>
+              <div class="hc-block">
+                <label class="hc-label" for="hhAliKcal">Energía del alimento (kcal EM por kg)</label>
+                <input type="number" id="hhAliKcal" class="hc-input" min="1000" max="6000" step="50" value="3900">
+              </div>
+            </div>
+            <div id="hhAliError" class="alert alert-danger py-2" style="display:none;"></div>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="hc-btn" id="hhAliBorrar">Borrar</button>
+              <button type="button" class="hc-btn hc-btn--primary" id="hhAliCalcular">Calcular</button>
+            </div>
+
+            <div class="hh-result" id="hhAliResultado" hidden>
+              <small>Cantidad diaria recomendada</small>
+              <div class="hh-big" id="hhAliGramos"></div>
+              <div class="hh-grid">
+                <div><small>Energía en reposo (RER)</small><b id="hhAliRER"></b></div>
+                <div><small>Energía diaria (MER)</small><b id="hhAliMER"></b></div>
+                <div><small>Por comida</small><b id="hhAliPorComida"></b></div>
+              </div>
+            </div>
+
+            <ul class="hh-notas">
+              <li>Perros con sobrepeso y/o obesos deben consultar al Médico Veterinario.</li>
+              <li>El cálculo usa el alimento con el contenido de energía indicado (por defecto 3900 kcal de energía metabolizable por kg). Alimentos por encima o por debajo de estos niveles deben ser verificados por el Médico Veterinario.</li>
+              <li>Los alimentos suministrados deben estar en buen estado (verificar la fecha de vencimiento) y contar con buena apariencia (olor, color y frescura).</li>
+              <li>Animales con altas necesidades energéticas (competencia, agility) verificar con el Médico Veterinario.</li>
+              <li>No aplica para animales con enfermedades metabólicas, tumorales, hormonales, inmunosupresoras y/o alérgicas.</li>
+              <li>Para los cachorros se recomienda un control de la curva de crecimiento típica de cada raza, verificada por el médico veterinario.</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="hc-btn" data-dismiss="modal">Cerrar</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var D = @json($herrDatos);
+
+    var $  = function (s, r) { return (r || document).querySelector(s); };
+    var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+    var esc = function (v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[c];
+        });
+    };
+    var hoy = function () {
+        var d = new Date(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+        return d.getFullYear() + '-' + m + '-' + dd;
+    };
+    var MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    var fechaLarga = function (iso) {
+        var p = (iso || hoy()).split('-');
+        return parseInt(p[2], 10) + ' de ' + MESES[parseInt(p[1], 10) - 1] + ' de ' + p[0];
+    };
+
+    /* ---------- Ficha del paciente (arriba de cada modal) ---------- */
+    function fichaPaciente() {
+        var m = D.mascota, p = D.propietario;
+        var partes = [
+            '<b>' + esc(m.nombre || '—') + '</b>',
+            esc([m.especie, m.raza].filter(Boolean).join(' · ')),
+            m.sexo ? esc(m.sexo) : '',
+            m.edad ? esc(m.edad) : '',
+            m.peso ? esc(m.peso) + ' kg' : '',
+            p.nombre ? 'Propietario: <b>' + esc(p.nombre) + '</b>' : ''
+        ].filter(Boolean);
+        $$('[data-hh="paciente"]').forEach(function (el) { el.innerHTML = partes.join(' &nbsp;•&nbsp; '); });
+    }
+
+    /* ---------- Impresión (ventana nueva) ---------- */
+    function imprimirDocumento(titulo, cuerpoHtml, firmas) {
+        var c = D.clinica;
+        var enc = [c.nit ? 'NIT ' + c.nit : '', c.direccion, c.ciudad, c.telefono ? 'Tel. ' + c.telefono : '', c.email]
+            .filter(Boolean).map(esc).join(' · ');
+        var firmasHtml = firmas.map(function (f) {
+            return '<div class="firma"><div class="linea"></div><b>' + esc(f.nombre || '') + '</b><br>' +
+                   esc(f.detalle || '') + '</div>';
+        }).join('');
+
+        var html = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' + esc(titulo) + '</title><style>' +
+            '@page{size:Letter;margin:18mm}' +
+            '*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;font-size:13px;line-height:1.6;margin:0}' +
+            '.cab{text-align:center;border-bottom:2px solid #1e293b;padding-bottom:10px;margin-bottom:22px}' +
+            '.cab h1{margin:0;font-size:24px;letter-spacing:.5px}.cab p{margin:3px 0 0;font-size:11px;color:#64748b}' +
+            'h2{text-align:center;font-size:17px;text-transform:uppercase;letter-spacing:1px;margin:0 0 18px}' +
+            '.ficha{border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;margin-bottom:18px;font-size:12px}' +
+            '.ficha span{display:inline-block;min-width:48%;}' +
+            '.texto{white-space:pre-wrap;text-align:justify}' +
+            '.firmas{display:flex;gap:40px;margin-top:70px}.firma{flex:1;text-align:center;font-size:12px}' +
+            '.linea{border-top:1px solid #1e293b;margin-bottom:6px}' +
+            '</style></head><body>' +
+            '<div class="cab"><h1>' + esc(c.nombre) + '</h1><p>' + (enc || '&nbsp;') + '</p></div>' +
+            '<h2>' + esc(titulo) + '</h2>' + cuerpoHtml +
+            '<div class="firmas">' + firmasHtml + '</div>' +
+            '<script>window.onload=function(){window.focus();window.print();}<\/script></body></html>';
+
+        var w = window.open('', '_blank');
+        if (!w) { alert('El navegador bloqueó la ventana emergente. Permítela para imprimir.'); return; }
+        w.document.open(); w.document.write(html); w.document.close();
+    }
+
+    function fichaHtml(extra) {
+        var m = D.mascota, p = D.propietario;
+        var filas = [
+            ['Paciente', m.nombre], ['Especie', m.especie], ['Raza', m.raza], ['Sexo', m.sexo],
+            ['Edad', m.edad], ['Color', m.color], ['Microchip', m.microchip],
+            ['Propietario', p.nombre], ['Documento', p.documento]
+        ].concat(extra || []).filter(function (f) { return f[1]; });
+        return '<div class="ficha">' + filas.map(function (f) {
+            return '<span><b>' + esc(f[0]) + ':</b> ' + esc(f[1]) + '</span>';
+        }).join('') + '</div>';
+    }
+
+    /* =================================================================== */
+    /*  CERTIFICADOS                                                       */
+    /* =================================================================== */
+    var CERT = {
+        salud: { titulo: 'Certificado de salud', texto: function () {
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que el paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', fue examinado clínicamente en el día de hoy, encontrándose en BUEN ESTADO DE SALUD, sin signos clínicos aparentes de enfermedades infecciosas, contagiosas ni parasitarias.\n\n' +
+                'Se expide a solicitud del interesado, en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } },
+        vacunacion: { titulo: 'Certificado de vacunación', texto: function () {
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que el paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', cuenta con el siguiente esquema de vacunación aplicado en esta clínica:\n\n' +
+                '- Vacuna: ____________  Lote: ________  Fecha de aplicación: ________\n' +
+                '- Vacuna: ____________  Lote: ________  Fecha de aplicación: ________\n' +
+                '- Antirrábica: ________  Lote: ________  Fecha de aplicación: ________\n\n' +
+                'Se expide a solicitud del interesado, en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } },
+        viaje: { titulo: 'Certificado de salud para viaje', texto: function () {
+            var dest = $('#hhCertDestino').value.trim() || '________';
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que el paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', fue examinado clínicamente y se encuentra en BUEN ESTADO DE SALUD, apto para viajar con destino a ' + dest +
+                ', sin signos clínicos de enfermedades infecciosas o contagiosas, con esquema de vacunación y desparasitación vigente.\n\n' +
+                'Este certificado tiene una validez de 10 días calendario a partir de su expedición.\n\n' +
+                'Se expide en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } },
+        esterilizacion: { titulo: 'Certificado de esterilización', texto: function () {
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que al paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza, D.mascota.sexo].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', se le practicó el procedimiento quirúrgico de ESTERILIZACIÓN en esta clínica el día ________, sin complicaciones.\n\n' +
+                'Se expide a solicitud del interesado, en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } },
+        defuncion: { titulo: 'Certificado de defunción', texto: function () {
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que el paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', falleció el día ________ a causa de ________________________.\n\n' +
+                'Se expide a solicitud del interesado, en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } },
+        general: { titulo: 'Certificado médico veterinario', texto: function () {
+            return 'Por medio del presente, el suscrito Médico Veterinario CERTIFICA que el paciente ' + D.mascota.nombre +
+                ', ' + [D.mascota.especie, D.mascota.raza].filter(Boolean).join(', ') + ', propiedad de ' + (D.propietario.nombre || '________') +
+                ', fue atendido en esta clínica y se hace constar lo siguiente:\n\n________________________________________________\n________________________________________________\n\n' +
+                'Se expide a solicitud del interesado, en ' + (D.clinica.ciudad || '________') + ', el ' + fechaLarga($('#hhCertFecha').value) + '.';
+        } }
+    };
+
+    function certGenerar() {
+        var t = $('#hhCertTipo').value;
+        $('#hhCertDestinoBox').hidden = (t !== 'viaje');
+        $('#hhCertTexto').value = CERT[t].texto();
+    }
+    function certImprimir() {
+        var t = $('#hhCertTipo').value;
+        var cuerpo = fichaHtml(t === 'viaje' && $('#hhCertDestino').value ? [['Destino', $('#hhCertDestino').value]] : []) +
+                     '<div class="texto">' + esc($('#hhCertTexto').value) + '</div>';
+        imprimirDocumento(CERT[t].titulo, cuerpo, [
+            { nombre: D.veterinario, detalle: 'Médico Veterinario' + ($('#hhCertTP').value ? ' · ' + $('#hhCertTP').value : '') }
+        ]);
+    }
+
+    /* =================================================================== */
+    /*  CONSENTIMIENTOS                                                    */
+    /* =================================================================== */
+    var CONS = {
+        cirugia:  { titulo: 'Consentimiento informado - Procedimiento quirúrgico', riesgos:
+            'He sido informado(a) de que todo procedimiento quirúrgico y anestésico conlleva riesgos, entre ellos: reacciones adversas a los medicamentos, hemorragia, infección, dehiscencia de la herida, complicaciones anestésicas e incluso la muerte del paciente, aun cuando se empleen todos los medios técnicos y científicos disponibles.' },
+        anestesia: { titulo: 'Consentimiento informado - Anestesia / sedación', riesgos:
+            'He sido informado(a) de que la anestesia y la sedación implican riesgos, aun en pacientes sanos: depresión respiratoria o cardiovascular, reacciones alérgicas, hipotermia, vómito y broncoaspiración, y en casos excepcionales paro cardiorrespiratorio y muerte.' },
+        hospitalizacion: { titulo: 'Consentimiento informado - Hospitalización', riesgos:
+            'Autorizo la hospitalización del paciente para su observación, diagnóstico y tratamiento. Entiendo que su evolución puede ser impredecible, que pueden requerirse procedimientos adicionales y que me mantendrán informado(a) de su estado. Me comprometo a cubrir los costos generados durante la estancia.' },
+        eutanasia: { titulo: 'Consentimiento informado - Eutanasia', riesgos:
+            'Solicito y autorizo la eutanasia del paciente por métodos humanitarios. Entiendo que es un procedimiento irreversible, que he sido informado(a) de las alternativas existentes y que tomo esta decisión de manera libre y voluntaria. Declaro ser el propietario o estar autorizado(a) para decidir sobre el paciente.' },
+        diagnostico: { titulo: 'Consentimiento informado - Procedimiento diagnóstico', riesgos:
+            'He sido informado(a) del procedimiento diagnóstico a realizar, su finalidad y sus posibles riesgos (estrés, sedación si es necesaria, reacciones al medio de contraste, hematomas, entre otros). Entiendo que los resultados pueden requerir exámenes complementarios.' },
+        esterilizacion: { titulo: 'Consentimiento informado - Esterilización', riesgos:
+            'He sido informado(a) de que la esterilización es un procedimiento quirúrgico bajo anestesia general, de carácter irreversible, con riesgos propios de la cirugía y la anestesia (hemorragia, infección, complicaciones anestésicas y, excepcionalmente, la muerte). Me indicaron los cuidados posoperatorios que debo cumplir.' }
+    };
+
+    function consGenerar() {
+        var t = $('#hhConsTipo').value;
+        var proc = $('#hhConsProc').value.trim() || '________________';
+        var m = D.mascota, p = D.propietario;
+        $('#hhConsTexto').value =
+            'Yo, ' + (p.nombre || '________________') + ', identificado(a) con documento ' + (p.documento || '________________') +
+            ', en calidad de propietario(a) o responsable del paciente ' + (m.nombre || '________') + ' (' +
+            [m.especie, m.raza, m.sexo, m.edad].filter(Boolean).join(', ') + '), AUTORIZO al equipo médico veterinario de ' + D.clinica.nombre +
+            ' para realizar: ' + proc + '.\n\n' +
+            CONS[t].riesgos + '\n\n' +
+            'Declaro que he recibido información clara y suficiente, que mis preguntas fueron respondidas, que los datos suministrados sobre el estado de salud y los antecedentes del paciente son veraces, y que otorgo mi consentimiento de forma libre y voluntaria.\n\n' +
+            'Fecha: ' + fechaLarga($('#hhConsFecha').value) + '.';
+    }
+    function consImprimir() {
+        var t = $('#hhConsTipo').value;
+        var cuerpo = fichaHtml($('#hhConsProc').value ? [['Procedimiento', $('#hhConsProc').value]] : []) +
+                     '<div class="texto">' + esc($('#hhConsTexto').value) + '</div>';
+        imprimirDocumento(CONS[t].titulo, cuerpo, [
+            { nombre: D.propietario.nombre || 'Propietario / Responsable', detalle: 'Propietario / Responsable · ' + (D.propietario.documento || 'C.C. ____________') },
+            { nombre: D.veterinario, detalle: 'Médico Veterinario' + ($('#hhConsTP').value ? ' · ' + $('#hhConsTP').value : '') }
+        ]);
+    }
+
+    /* =================================================================== */
+    /*  VALORES NORMALES DE LABORATORIO                                    */
+    /* =================================================================== */
+    var LAB = [
+        ['Hematología'],
+        ['Hematocrito', '%', '37 - 55', '30 - 45'],
+        ['Sólidos totales', 'g/dl', '6 - 7.9', '6 - 8.2'],
+        ['Hemoglobina', 'g/dl', '12 a 18', '8 a 15'],
+        ['Recuento G. Rojos', 'millones/µl', '5.5 a 8.5', '5 a 10'],
+        ['VCM (MV)', 'fL', '60 a 77', '39 a 55'],
+        ['HCM', 'pg', '19.5 a 24.5', '12.5 a 17.5'],
+        ['CHCM', 'g/dl', '32 a 36', '30 a 36'],
+        ['Reticulocitos', '%', 'Hasta 1', 'Hasta 1.5'],
+        ['Leucocitos', '/µl', '6.000 a 17.000', '5.500 a 19.500'],
+        ['Neutrófilos segmentados', '/µl', '3.000 a 11.500', '2.500 a 12.500'],
+        ['Neutrófilos en banda', '/µl', '0 a 300', '0 a 300'],
+        ['Linfocitos', '/µl', '1.000 a 4.800', '1.500 a 7.000'],
+        ['Monocitos', '/µl', '150 a 1.350', '0 a 850'],
+        ['Eosinófilos', '/µl', '100 a 1.250', '100 a 1.500'],
+        ['Plaquetas', '/µl', '200.000 a 500.000', '300.000 a 800.000'],
+        ['Química sanguínea'],
+        ['Glucosa', 'mg/dl', '70 a 143', '71 a 148'],
+        ['Urea (BUN)', 'mg/dl', '7 a 27', '16 a 36'],
+        ['Creatinina', 'mg/dl', '0.5 a 1.8', '0.8 a 2.4'],
+        ['ALT (GPT)', 'U/L', '10 a 125', '12 a 130'],
+        ['AST (GOT)', 'U/L', '0 a 50', '0 a 48'],
+        ['Fosfatasa alcalina', 'U/L', '23 a 212', '14 a 111'],
+        ['GGT', 'U/L', '0 a 7', '0 a 4'],
+        ['Bilirrubina total', 'mg/dl', '0 a 0.9', '0 a 0.4'],
+        ['Proteínas totales', 'g/dl', '5.4 a 7.1', '5.7 a 7.8'],
+        ['Albúmina', 'g/dl', '2.3 a 3.1', '2.8 a 3.9'],
+        ['Globulinas', 'g/dl', '2.7 a 4.4', '2.8 a 5.1'],
+        ['Colesterol', 'mg/dl', '110 a 320', '65 a 225'],
+        ['Amilasa', 'U/L', '500 a 1.500', '500 a 1.500'],
+        ['Electrolitos'],
+        ['Calcio', 'mg/dl', '9.0 a 11.8', '8.8 a 11.9'],
+        ['Fósforo', 'mg/dl', '2.6 a 6.2', '3.1 a 7.5'],
+        ['Sodio', 'mEq/L', '144 a 160', '150 a 165'],
+        ['Potasio', 'mEq/L', '3.5 a 5.8', '3.5 a 5.8'],
+        ['Cloro', 'mEq/L', '109 a 122', '112 a 129'],
+        ['Signos vitales y orina'],
+        ['Temperatura', '°C', '37.5 a 39.2', '38.0 a 39.2'],
+        ['Frecuencia cardíaca', 'lat/min', '70 a 160', '140 a 220'],
+        ['Frecuencia respiratoria', 'resp/min', '10 a 30', '20 a 30'],
+        ['Densidad urinaria', '—', '1.015 a 1.045', '1.035 a 1.060'],
+        ['pH urinario', '—', '5.5 a 7.5', '6.0 a 7.5']
+    ];
+
+    function labRender() {
+        var q = ($('#hhLabBuscar').value || '').trim().toLowerCase();
+        var esp = (D.mascota.especie || '').toLowerCase();
+        var perro = esp.indexOf('perr') > -1 || esp.indexOf('can') > -1;
+        var gato  = esp.indexOf('gat') > -1 || esp.indexOf('fel') > -1;
+        var html = '', grupoHtml = '', hayGrupo = false;
+
+        LAB.forEach(function (f) {
+            if (f.length === 1) { grupoHtml = '<tr class="hh-grupo"><td colspan="4">' + esc(f[0]) + '</td></tr>'; hayGrupo = false; return; }
+            if (q && (f[0] + ' ' + f[1]).toLowerCase().indexOf(q) === -1) return;
+            if (!hayGrupo) { html += grupoHtml; hayGrupo = true; }
+            html += '<tr><td>' + esc(f[0]) + '</td><td>' + esc(f[1]) + '</td>' +
+                    '<td class="' + (perro ? 'hh-sel' : '') + '">' + esc(f[2]) + '</td>' +
+                    '<td class="' + (gato ? 'hh-sel' : '') + '">' + esc(f[3]) + '</td></tr>';
+        });
+        $('#hhLabBody').innerHTML = html || '<tr><td colspan="4" style="text-align:center;color:#64748b;">Sin resultados</td></tr>';
+    }
+
+    /* =================================================================== */
+    /*  DOSIS DE ALIMENTO                                                  */
+    /*  RER = 70 × peso^0.75 · MER = RER × factor · g/día = MER / kcal × 1000 */
+    /* =================================================================== */
+    var ETAPAS = {
+        perro: [
+            ['Cachorro (hasta 4 meses)', 3.0],
+            ['Cachorro (4 a 12 meses)', 2.0],
+            ['Adulto entero (actividad normal)', 1.8],
+            ['Adulto castrado / esterilizado', 1.6],
+            ['Adulto inactivo o propenso a obesidad', 1.4],
+            ['Senior (7 años o más)', 1.4],
+            ['Pérdida de peso (sobre peso ideal)', 1.0],
+            ['Trabajo ligero', 2.0],
+            ['Trabajo moderado', 3.0],
+            ['Trabajo intenso / alto rendimiento', 6.0],
+            ['Gestación (primeras 6 semanas)', 1.8],
+            ['Gestación (últimas 3 semanas)', 3.0],
+            ['Lactancia', 4.0]
+        ],
+        gato: [
+            ['Gatito (hasta 4 meses)', 2.5],
+            ['Gatito (4 a 12 meses)', 2.0],
+            ['Adulto entero', 1.4],
+            ['Adulto castrado / esterilizado', 1.2],
+            ['Adulto inactivo o propenso a obesidad', 1.0],
+            ['Senior (10 años o más)', 1.1],
+            ['Pérdida de peso (sobre peso ideal)', 0.8],
+            ['Gestación', 1.6],
+            ['Lactancia', 3.0]
+        ]
+    };
+
+    function aliEtapas() {
+        var esp = $('#hhAliEspecie').value;
+        $('#hhAliEtapa').innerHTML = '<option value="">Seleccionar...</option>' + ETAPAS[esp].map(function (e, i) {
+            return '<option value="' + i + '">' + esc(e[0]) + '</option>';
+        }).join('');
+        $('#hhAliResultado').hidden = true;
+    }
+    function aliBorrar() {
+        $('#hhAliEtapa').value = ''; $('#hhAliPeso').value = ''; $('#hhAliKcal').value = 3900;
+        $('#hhAliError').style.display = 'none'; $('#hhAliResultado').hidden = true;
+    }
+    function aliCalcular() {
+        var err = $('#hhAliError'), esp = $('#hhAliEspecie').value;
+        var idx = $('#hhAliEtapa').value, peso = parseFloat($('#hhAliPeso').value), kcal = parseFloat($('#hhAliKcal').value);
+        var msgs = [];
+        if (idx === '') msgs.push('Selecciona la etapa.');
+        if (!(peso > 0)) msgs.push('Ingresa el peso en kg.');
+        if (!(kcal > 0)) msgs.push('Ingresa la energía del alimento (kcal/kg).');
+        if (msgs.length) { err.innerHTML = msgs.join('<br>'); err.style.display = 'block'; $('#hhAliResultado').hidden = true; return; }
+        err.style.display = 'none';
+
+        var factor = ETAPAS[esp][parseInt(idx, 10)][1];
+        var rer = 70 * Math.pow(peso, 0.75);
+        var mer = rer * factor;
+        var gramos = mer / kcal * 1000;
+        var comidas = (esp === 'gato' || parseInt(idx, 10) <= 1) ? 3 : 2;
+
+        $('#hhAliGramos').textContent = Math.round(gramos) + ' g / día';
+        $('#hhAliRER').textContent = Math.round(rer) + ' kcal';
+        $('#hhAliMER').textContent = Math.round(mer) + ' kcal (×' + factor + ')';
+        $('#hhAliPorComida').textContent = Math.round(gramos / comidas) + ' g × ' + comidas;
+        $('#hhAliResultado').hidden = false;
+    }
+
+    /* =================================================================== */
+    /*  Eventos                                                            */
+    /* =================================================================== */
+    function iniciar() {
+        fichaPaciente();
+
+        // Al abrir el modal: fechas de hoy, textos generados, tabla y etapas
+        if (window.jQuery) {
+            window.jQuery('#modalHerramientas').on('show.bs.modal', function () {
+                $('#hhCertFecha').value = hoy(); certGenerar();
+                $('#hhConsFecha').value = hoy(); consGenerar();
+                labRender();
+                var esp = (D.mascota.especie || '').toLowerCase();
+                $('#hhAliEspecie').value = (esp.indexOf('gat') > -1 || esp.indexOf('fel') > -1) ? 'gato' : 'perro';
+                aliEtapas();
+                if (parseFloat(D.mascota.peso) > 0) $('#hhAliPeso').value = parseFloat(D.mascota.peso);
+            });
+        }
+
+        $('#hhCertTipo').addEventListener('change', certGenerar);
+        $('#hhCertFecha').addEventListener('change', certGenerar);
+        $('#hhCertDestino').addEventListener('input', certGenerar);
+        $('#hhCertRegenerar').addEventListener('click', certGenerar);
+        $('#hhCertImprimir').addEventListener('click', certImprimir);
+
+        $('#hhConsTipo').addEventListener('change', consGenerar);
+        $('#hhConsFecha').addEventListener('change', consGenerar);
+        $('#hhConsProc').addEventListener('input', consGenerar);
+        $('#hhConsRegenerar').addEventListener('click', consGenerar);
+        $('#hhConsImprimir').addEventListener('click', consImprimir);
+
+        $('#hhLabBuscar').addEventListener('input', labRender);
+
+        $('#hhAliEspecie').addEventListener('change', aliEtapas);
+        $('#hhAliCalcular').addEventListener('click', aliCalcular);
+        $('#hhAliBorrar').addEventListener('click', aliBorrar);
+        $('#hhAliPeso').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); aliCalcular(); } });
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+    else iniciar();
+})();
+</script>
 
 @stop
 

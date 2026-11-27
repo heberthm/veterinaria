@@ -58,7 +58,7 @@ class ConfiguracionController extends Controller
             abort_unless($esAdmin, 403, 'Solo los administradores pueden cambiar la configuración.');
 
             return $next($request);
-        });
+        })->except('logo');
     }
 
     /* ===================================================================== */
@@ -160,6 +160,19 @@ class ConfiguracionController extends Controller
             'success'  => true,
             'message'  => 'Datos de la clínica guardados.',
             'logo_url' => $cfg->fresh()->logo_url,
+        ]);
+    }
+
+    /** Sirve el logo de la clínica (visible para cualquier usuario autenticado). */
+    public function logo()
+    {
+        $cfg  = Configuracion::deTenant($this->tenantId());
+        $disk = Storage::disk('public');
+
+        abort_unless($cfg && $cfg->logo && $disk->exists($cfg->logo), 404);
+
+        return response()->file($disk->path($cfg->logo), [
+            'Cache-Control' => 'private, max-age=86400',
         ]);
     }
 

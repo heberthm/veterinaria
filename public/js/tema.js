@@ -11,6 +11,7 @@
    ===================================================================== */
 (function () {
     'use strict';
+    if (window.VetTema) return;   // evita doble carga (layout + plugin de AdminLTE)
 
     var KEY  = 'vf-tema';
     var root = document.documentElement;
@@ -100,6 +101,9 @@
                 var nd = e2.childNodes[k];
                 if (nd.nodeType === 3 && nd.nodeValue.trim()) { tiene = true; break; }
             }
+            // Botones/enlaces con solo un icono (sin texto) también necesitan color claro
+            if (!tiene && (e2.tagName === 'BUTTON' || e2.tagName === 'A' || e2.classList.contains('btn')) &&
+                e2.querySelector(':scope > i, :scope > svg, :scope > .fas, :scope > .far')) tiene = true;
             if (!tiene) continue;
             var fg = parse(getComputedStyle(e2).color);
             if (fg && lum(fg) < 0.3 && fondoOscuro(e2)) {

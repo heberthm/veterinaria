@@ -166,6 +166,36 @@ html[data-theme="dark"] .vf-fix-amarillo {
 html[data-theme="dark"] .vf-fix-amarillo:hover { background-color: #fde047 !important; color: #000 !important; }
 html[data-theme="dark"] .vf-fix-amarillo i, html[data-theme="dark"] .vf-fix-amarillo svg { color: inherit !important; }
 
+/* ---------- Configuración: botones seleccionables (roles, pestañas, catálogos) ----------
+   Seleccionado = azul; no seleccionado = superficie oscura. Con !important para
+   que el corrector automático no deje un estado viejo al cambiar de botón. */
+html[data-theme="dark"] .cf-rol:not(.is-active),
+html[data-theme="dark"] .cf-tab:not(.is-active),
+html[data-theme="dark"] .cf-cat__tipo:not(.is-active) {
+    background-color: var(--vf-surface-2) !important; border-color: var(--vf-surface-3) !important; color: var(--vf-text-2) !important;
+}
+html[data-theme="dark"] .cf-rol:not(.is-active):hover,
+html[data-theme="dark"] .cf-tab:not(.is-active):hover,
+html[data-theme="dark"] .cf-cat__tipo:not(.is-active):hover {
+    border-color: #3b82f6 !important; color: #93c5fd !important;
+}
+html[data-theme="dark"] .cf-rol.is-active,
+html[data-theme="dark"] .cf-tab.is-active,
+html[data-theme="dark"] .cf-cat__tipo.is-active {
+    background-color: #2F6FED !important; border-color: #2F6FED !important; color: #fff !important;
+}
+
+/* ---------- Botones de la historia clínica (.hc-btn): iconos visibles ---------- */
+html[data-theme="dark"] .hc-btn:not(.hc-btn--primary):not(.hc-btn--green):not(.hc-btn--outline-blue):not(.hc-btn--pdf) {
+    background-color: var(--vf-surface-2) !important; border-color: var(--vf-surface-3) !important; color: var(--vf-text) !important;
+}
+html[data-theme="dark"] .hc-btn:not(.hc-btn--primary):not(.hc-btn--green):not(.hc-btn--outline-blue):not(.hc-btn--pdf):hover {
+    background-color: var(--vf-surface-3) !important; color: #fff !important;
+}
+html[data-theme="dark"] .hc-btn i, html[data-theme="dark"] .hc-btn svg { color: inherit; }
+html[data-theme="dark"] .hc-btn--pdf i { color: #f87171 !important; }
+html[data-theme="dark"] .hc-btn--outline-blue { color: #93c5fd !important; border-color: #3b82f6 !important; }
+
 /* ---------- Formularios ---------- */
 html[data-theme="dark"] .form-control,
 html[data-theme="dark"] .custom-select,
